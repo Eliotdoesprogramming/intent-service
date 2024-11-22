@@ -1,20 +1,23 @@
 # Use Python slim image as the base
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # Set working directory in container
 WORKDIR /app
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
+# Install uv
+RUN pip install --no-cache-dir uv
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
 
-# Copy the rest of the application
-COPY . .
+# Install dependencies using uv
+COPY src/ ./src/
+RUN uv sync
 
+# Copy only the necessary source files
 # Expose the port the app runs on
+
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uv", "run", "src/run_service.py"]
