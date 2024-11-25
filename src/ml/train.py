@@ -152,8 +152,22 @@ def package_model(model, intents, tokenizer):
 
     # Create an example input
     example_input = pd.DataFrame({"text": ["example text for signature"]})
+    
+    # Define input and output schema
+    from mlflow.types.schema import Schema, ColSpec
+    input_schema = Schema([
+        ColSpec("string", "text")
+    ])
+    output_schema = Schema([
+        ColSpec("double", "scores"),  # Probability scores for each intent
+        ColSpec("string", "predicted_intent")  # Predicted intent label
+    ])
+    signature = mlflow.models.signature.ModelSignature(
+        inputs=input_schema,
+        outputs=output_schema
+    )
 
-    # Log the model with its artifacts
+    # Log the model with its artifacts and signature
     mlflow.pyfunc.log_model(
         artifact_path="intent_model",
         python_model=IntentModel(),
@@ -162,6 +176,7 @@ def package_model(model, intents, tokenizer):
             "tokenizer_path": os.path.join(artifact_path, "tokenizer"),
         },
         input_example=example_input,
+        signature=signature
     )
     run_id = mlflow.active_run().info.run_id
     mlflow.end_run()
