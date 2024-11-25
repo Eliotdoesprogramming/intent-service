@@ -184,8 +184,18 @@ async def train_model(request: TrainingRequest) -> dict:
 @app.post("/model/{model_id}/predict")
 def predict(model_id: str, text: str) -> dict:
     try:
-    # Load the model using the model_id as run_id
-        loaded_model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")
+        # First try loading as a registered model
+        try:
+            loaded_model = mlflow.pyfunc.load_model(f"models:/{model_id}/latest")
+        except mlflow.exceptions.MlflowException:
+            # If not found as registered model, try loading as a run
+            try:
+                loaded_model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")
+            except mlflow.exceptions.MlflowException:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No model found with ID {model_id} (tried both registered models and runs)"
+                )
         
         # Create a pandas DataFrame with the input text
         test_data = pd.DataFrame({"text": [text]})
@@ -195,10 +205,8 @@ def predict(model_id: str, text: str) -> dict:
         
         # Return the prediction dictionary (contains all intent scores)
         return prediction[0]  # First element since we only predicted one text
-    except mlflow.exceptions.MlflowException as e:
-        if "Run" in str(e) and "not found" in str(e):
-            raise HTTPException(status_code=400, detail=f"Model ID {model_id} not found")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
