@@ -2,7 +2,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import Dict, List, Optional, Any, Literal
 
 class RegisterModelRequest(BaseModel):
-    id: str
+    mlflow_run_id: str
     name: Optional[str] = None
     description: Optional[str] = None
     tags: Dict[str, Any] = {}

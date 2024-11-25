@@ -15,19 +15,19 @@ def redirect_to_docs():
     return RedirectResponse(url="/docs")
 
 # Endpoint to list available models
-@app.get("/models")
+@app.get("/model")
 def get_models():
     pass
 
 # Endpoint to update model information
-@app.put("/models/{model_id}")
+@app.put("/model/{model_id}")
 def update_model(model_id: int, model: RegisterModelRequest):
     # Find the model with the given ID and update its information
     pass
 
 # Endpoint to create and train a model
-@app.post("/models")
-def create_model(model: RegisterModelRequest):
+@app.post("/model/register")
+def register_model(model: RegisterModelRequest):
     """Register an existing MLflow run as a named model in the MLflow Model Registry.
     
     Args:
@@ -39,17 +39,17 @@ def create_model(model: RegisterModelRequest):
     try:
         # Load the model to verify it exists
         try:
-            loaded_model = mlflow.pyfunc.load_model(f"runs:/{model.id}/intent_model")
+            loaded_model = mlflow.pyfunc.load_model(f"runs:/{model.mlflow_run_id}/intent_model")
             intents = loaded_model._model_impl.python_model.intent_labels
             del loaded_model
         except mlflow.exceptions.MlflowException:
             raise HTTPException(
                 status_code=404,
-                detail=f"No model found with run ID: {model.id}"
+                detail=f"No model found with run ID: {model.mlflow_run_id}"
             )
             
         # Register the model
-        model_uri = f"runs:/{model.id}/intent_model"
+        model_uri = f"runs:/{model.mlflow_run_id}/intent_model"
         registered_model = mlflow.register_model(
             model_uri=model_uri,
             name=model.name
@@ -94,12 +94,12 @@ def create_model(model: RegisterModelRequest):
         )
 
 # Endpoint to delete a model
-@app.delete("/models/{model_id}")
+@app.delete("/model/{model_id}")
 def delete_model(model_id: int):
     # Find the model with the given ID and remove it from the list of models
     pass
 
-@app.post("/train", response_model=TrainingResponse)
+@app.post("/model/train", response_model=TrainingResponse)
 async def train_model(request: TrainingRequest) -> dict:
     try:
         if request.experiment_name:
@@ -181,7 +181,7 @@ async def train_model(request: TrainingRequest) -> dict:
             detail=f"Error training model: {str(e)}"
         )
 
-@app.post("/models/{model_id}/predict")
+@app.post("/model/{model_id}/predict")
 def predict(model_id: str, text: str) -> dict:
     try:
     # Load the model using the model_id as run_id

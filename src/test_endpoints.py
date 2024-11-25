@@ -97,7 +97,7 @@ def test_predict_endpoint(client, trained_model):
     for test_case in test_cases:
         start_time = time.time()
         response = client.post(
-            f"/models/{run_id}/predict",
+            f"/model/{run_id}/predict",
             params={"text": test_case["text"]}
         )
         end_time = time.time()
@@ -115,7 +115,7 @@ def test_predict_endpoint(client, trained_model):
 def test_predict_invalid_model(client):
     id = "99999"
     response = client.post(
-        f"/models/{id}/predict",
+        f"/model/{id}/predict",
         params={"text": "hello"}
     )
     assert response.status_code == 400
@@ -139,7 +139,7 @@ def test_train_endpoint_with_url(client, mock_csv_content,default_training_confi
             "training_config": default_training_config.dict()
         }
         
-        response = client.post("/train", json=request)
+        response = client.post("/model/train", json=request)
         assert response.status_code == 200
         assert "model_id" in response.json()
         assert response.json()["status"] == "success"
@@ -159,7 +159,7 @@ def test_train_endpoint_with_upload(client, mock_csv_content, default_training_c
         "training_config": default_training_config.dict()
     }
     
-    response = client.post("/train", json=request)
+    response = client.post("/model/train", json=request)
     assert response.status_code == 200
     assert "model_id" in response.json()
     assert response.json()["status"] == "success"
@@ -167,7 +167,7 @@ def test_train_endpoint_with_upload(client, mock_csv_content, default_training_c
 def test_create_model(client, trained_model):
     run_id = trained_model["run_id"]
     model_request = {
-        "id": run_id,
+        "mlflow_run_id": run_id,
         "name": "test_intent_model",
         "description": "Test intent classification model",
         "intents": ["greeting", "farewell"],
@@ -183,7 +183,7 @@ def test_create_model(client, trained_model):
     }
     
     # Test successful model registration
-    response = client.post("/models", json=model_request)
+    response = client.post("/model/register", json=model_request)
     model_version = response.json()["version"]
     assert response.status_code == 200
     result = response.json()
@@ -192,8 +192,8 @@ def test_create_model(client, trained_model):
     
     # Test registering non-existent model
     invalid_request = model_request.copy()
-    invalid_request["id"] = "99999"
-    response = client.post("/models", json=invalid_request)
+    invalid_request["mlflow_run_id"] = "99999"
+    response = client.post("/model/register", json=invalid_request)
     assert response.status_code == 404
     assert "No model found with run ID" in response.json()["detail"]
     
@@ -201,6 +201,6 @@ def test_create_model(client, trained_model):
     # should create a new version of the model
     duplicate_request = model_request.copy()
     duplicate_request["id"] = run_id
-    response = client.post("/models", json=duplicate_request)
+    response = client.post("/model/register", json=duplicate_request)
     assert response.status_code == 200
     assert response.json()["version"] != model_version
