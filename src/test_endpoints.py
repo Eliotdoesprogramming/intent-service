@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from api.endpoints import app
 import polars as pl
-from ml.train import train_intent_classifier
+from ml.train import package_model, train_intent_classifier
 from schema.schema import TrainingConfig
 import base64
 from unittest.mock import patch
@@ -31,7 +31,8 @@ def test_predict_endpoint():
     df = pl.DataFrame(intents)
     
     # Train the model and get run_id
-    run_id = train_intent_classifier(df)
+    model, intents_list, tokenizer = train_intent_classifier(df)
+    run_id = package_model(model, intents_list, tokenizer)
     
     # Test cases
     test_cases = [
@@ -109,7 +110,7 @@ help_request,having trouble with this"""
         # Configure the mock response
         mock_response = mock_get.return_value
         mock_response.status_code = 200
-        mock_response.content = mock_csv_content.encode()
+        mock_response.text = mock_csv_content.encode()
         mock_response.iter_lines = lambda: io.StringIO(mock_csv_content).readlines()
         
         # Create test request with URL

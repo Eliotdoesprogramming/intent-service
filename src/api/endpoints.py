@@ -49,7 +49,11 @@ async def train_model(request: TrainingRequest) -> dict:
                     status_code=400,
                     detail=f"Failed to download dataset from URL: {response.status_code}"
                 )
-            data = pl.read_csv(io.StringIO(response.text))
+            
+            if isinstance(response.text, bytes):
+                data = pl.read_csv(io.StringIO(response.text.decode()))
+            else:
+                data = pl.read_csv(io.StringIO(response.text))
             
         elif request.dataset_source.source_type == "upload":
             if not request.dataset_source.file_content:

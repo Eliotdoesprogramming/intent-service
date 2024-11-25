@@ -3,6 +3,8 @@ import polars as pl
 import mlflow
 import pandas as pd
 
+from ml.train import package_model
+
 intents = {
     "intent": [
         "greeting", "greeting", "greeting", "greeting", "greeting",
@@ -34,7 +36,8 @@ df = pl.DataFrame(intents)
 
 def test_intent_classifier():
     # Train the model and get the run_id
-    run_id = train_intent_classifier(df)
+    model, intents_list, tokenizer = train_intent_classifier(df)
+    run_id = package_model(model, intents_list, tokenizer)
     print(f"Model trained successfully. Run ID: {run_id}")
     
     # Load the model from MLflow
