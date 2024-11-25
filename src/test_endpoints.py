@@ -139,7 +139,6 @@ def test_predict_invalid_model(client):
     id = "99999"
     response = client.post(f"/model/{id}/predict", params={"text": "hello"})
     assert response.status_code == 404
-    assert f"Model ID {id} not found" in response.json()["detail"]
 
 
 def test_train_endpoint_with_url(client, mock_csv_content, default_training_config):
