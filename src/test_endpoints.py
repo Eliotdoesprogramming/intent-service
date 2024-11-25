@@ -6,7 +6,9 @@ from schema.schema import TrainingConfig
 import base64
 from unittest.mock import patch
 import io
-
+import logging
+import time
+logger = logging.getLogger(__name__)
 client = TestClient(app)
 
 def get_default_training_config():
@@ -25,8 +27,16 @@ def get_default_training_config():
 def test_predict_endpoint():
     # First, create some test data and train a model
     intents = {
-        "intent": ["greeting", "farewell", "help_request"],
-        "text": ["hello there", "goodbye", "can you help me"]
+        "intent": [
+            "greeting", "greeting", "greeting", "greeting", "greeting",
+            "farewell", "farewell", "farewell", "farewell", "farewell", 
+            "help_request", "help_request", "help_request", "help_request", "help_request"
+        ],
+        "text": [
+            "hello there", "hi", "hey", "good morning", "greetings",
+            "goodbye", "bye", "see you later", "farewell", "take care",
+            "can you help me", "i need assistance", "help please", "could you assist me", "need some help"
+        ]
     }
     df = pl.DataFrame(intents)
     
@@ -52,10 +62,14 @@ def test_predict_endpoint():
     
     # Test each case
     for test_case in test_cases:
+        start_time = time.time()
         response = client.post(
             f"/models/{run_id}/predict",
             params={"text": test_case["text"]}
         )
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Predict endpoint execution time: {execution_time:.4f} seconds")
         
         # Assert response is successful
         assert response.status_code == 200
