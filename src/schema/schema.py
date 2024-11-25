@@ -38,4 +38,7 @@ class TrainingResponse(BaseModel):
     message: str 
 
 class ModelSearchRequest(BaseModel):
-    pass
+    tags: Optional[Dict[str, str]] = None  # Tag key-value pairs to filter by
+    intents: Optional[List[str]] = None    # List of required intents
+    name_contains: Optional[str] = None     # Substring to match in model names
+    limit: Optional[int] = 100             # Maximum number of results to return

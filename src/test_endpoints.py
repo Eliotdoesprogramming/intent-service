@@ -259,3 +259,110 @@ def test_get_model_info(client, trained_model):
     response = client.get(f"/model/{invalid_id}")
     assert response.status_code == 404
     assert f"No model found with ID: {invalid_id}" in response.json()["detail"]
+
+def test_search_models(client, trained_model):
+    """Test the model search endpoint with various search criteria"""
+    
+    # First register a few models with different tags and intents
+    run_id = trained_model["run_id"]
+    
+    # Register first model
+    model1_request = {
+        "mlflow_run_id": run_id,
+        "name": "prod_model_v1",
+        "description": "Production model version 1",
+        "tags": {
+            "environment": "production",
+            "version": "1.0",
+            "team": "nlp"
+        }
+    }
+    
+    # Register second model
+    model2_request = {
+        "mlflow_run_id": run_id,
+        "name": "test_bert_v1",
+        "description": "Test BERT model",
+        "tags": {
+            "environment": "testing",
+            "version": "1.0",
+            "model_type": "bert"
+        }
+    }
+    
+    # Register both models
+    response1 = client.post("/model/register", json=model1_request)
+    assert response1.status_code == 200
+    response2 = client.post("/model/register", json=model2_request)
+    assert response2.status_code == 200
+    
+    # Test 1: Search by tag
+    search_request = {
+        "tags": {"environment": "production"}
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) >= 1
+    assert any(model["name"] == "prod_model_v1" for model in results)
+    assert all(
+        model["tags"].get("environment") == "production" 
+        for model in results
+    )
+    
+    # Test 2: Search by name pattern
+    search_request = {
+        "name_contains": "bert"
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) >= 1
+    assert any(model["name"] == "test_bert_v1" for model in results)
+    
+    # Test 3: Search by intents
+    search_request = {
+        "intents": ["greeting", "farewell"]
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) >= 1
+    assert all(
+        set(["greeting", "farewell"]).issubset(set(model["intents"])) 
+        for model in results
+    )
+    
+    # Test 4: Combined search criteria
+    search_request = {
+        "tags": {"environment": "testing"},
+        "name_contains": "bert",
+        "intents": ["greeting"],
+        "limit": 1
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) <= 1  # Respects the limit
+    if results:
+        assert results[0]["name"] == "test_bert_v1"
+        assert results[0]["tags"]["environment"] == "testing"
+        assert "greeting" in results[0]["intents"]
+    
+    # Test 5: Search with no results
+    search_request = {
+        "tags": {"environment": "nonexistent"}
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 0
+    
+    # Test 6: Invalid search request (should still return 200 with empty results)
+    search_request = {
+        "tags": None,
+        "intents": None,
+        "name_contains": None
+    }
+    response = client.post("/model/search", json=search_request)
+    assert response.status_code == 200

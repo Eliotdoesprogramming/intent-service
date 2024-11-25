@@ -133,7 +133,98 @@ def get_model_info(model_id: str):
 
 @app.post("/model/search")
 def search_models(model_search_request: ModelSearchRequest):
-    pass
+    """
+    Search for registered models based on tags, intents, and name patterns.
+    
+    Args:
+        model_search_request (ModelSearchRequest): Search criteria including:
+            - tags: Optional dict of tag key-value pairs to match
+            - intents: Optional list of required intent labels
+            - name_contains: Optional substring to match in model names
+            - limit: Maximum number of results to return (default: 100)
+    
+    Returns:
+        list: List of matching model information dictionaries containing:
+            - name: Model name
+            - version: Latest version
+            - description: Model description
+            - intents: List of supported intents
+            - tags: Model tags
+            - creation_timestamp: When model was created
+            - last_updated_timestamp: Last update time
+    
+    Raises:
+        HTTPException(500): If there are errors accessing MLflow
+    """
+    try:
+        client = mlflow.tracking.MlflowClient()
+        results = []
+        
+        # Get all registered models
+        registered_models = client.search_registered_models()
+        
+        for rm in registered_models:
+            match = True
+            model_info = {
+                "name": rm.name,
+                "description": rm.description,
+                "creation_timestamp": rm.creation_timestamp,
+                "last_updated_timestamp": rm.last_updated_timestamp,
+            }
+            
+            # Get latest version
+            latest_versions = client.get_latest_versions(rm.name, stages=["None"])
+            if latest_versions:
+                model_info["version"] = latest_versions[0].version
+            
+            # Get all tags
+            tags = rm.tags if rm.tags else {}
+            
+            # Extract intents from tags
+            model_intents = [
+                tag.replace("intent_", "") 
+                for tag in tags.keys() 
+                if tag.startswith("intent_")
+            ]
+            model_info["intents"] = model_intents
+            
+            # Filter non-intent tags
+            model_info["tags"] = {
+                k: v for k, v in tags.items() 
+                if not k.startswith("intent_")
+            }
+            
+            # Apply name filter if specified
+            if (model_search_request.name_contains and 
+                model_search_request.name_contains.lower() not in rm.name.lower()):
+                match = False
+                
+            # Apply tag filters if specified
+            if model_search_request.tags:
+                for key, value in model_search_request.tags.items():
+                    if key not in tags or tags[key] != value:
+                        match = False
+                        break
+                        
+            # Apply intent filters if specified
+            if model_search_request.intents:
+                if not set(model_search_request.intents).issubset(set(model_intents)):
+                    match = False
+            
+            if match:
+                results.append(model_info)
+                
+            # Apply result limit
+            if model_search_request.limit and len(results) >= model_search_request.limit:
+                break
+                
+        return results
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error searching models: {str(e)}"
+        )
 
 # Endpoint to update model information
 @app.put("/model/{model_id}")
