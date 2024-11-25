@@ -37,3 +37,5 @@ class TrainingResponse(BaseModel):
     status: Literal["success", "failed"]
     message: str 
 
+class ModelSearchRequest(BaseModel):
+    pass

@@ -204,3 +204,58 @@ def test_create_model(client, trained_model):
     response = client.post("/model/register", json=duplicate_request)
     assert response.status_code == 200
     assert response.json()["version"] != model_version
+
+def test_get_model_info(client, trained_model):
+    """Test the get_model_info endpoint with both registered and unregistered models"""
+    
+    # First register a model to test registered model path
+    run_id = trained_model["run_id"]
+    model_request = {
+        "mlflow_run_id": run_id,
+        "name": "test_model_info",
+        "description": "Test model for info endpoint",
+        "tags": {
+            "test_tag": "test_value",
+            "environment": "testing"
+        }
+    }
+    
+    # Register the model first
+    register_response = client.post("/model/register", json=model_request)
+    assert register_response.status_code == 200
+    
+    # Test getting info for registered model
+    response = client.get(f"/model/test_model_info")
+    assert response.status_code == 200
+    model_info = response.json()
+    
+    # Verify registered model information
+    assert model_info["name"] == "test_model_info"
+    assert model_info["description"] == "Test model for info endpoint"
+    assert "version" in model_info
+    assert "creation_timestamp" in model_info
+    assert "last_updated_timestamp" in model_info
+    assert "intents" in model_info
+    assert isinstance(model_info["intents"], list)
+    assert model_info["tags"]["test_tag"] == "test_value"
+    assert model_info["tags"]["environment"] == "testing"
+    assert "run_info" in model_info
+    
+    # Test getting info using run ID directly
+    response = client.get(f"/model/{run_id}")
+    assert response.status_code == 200
+    run_info = response.json()
+    
+    # Verify run information
+    assert run_info["run_id"] == run_id
+    assert "status" in run_info
+    assert "metrics" in run_info
+    assert "params" in run_info
+    assert "intents" in run_info
+    assert isinstance(run_info["intents"], list)
+    
+    # Test invalid model ID
+    invalid_id = "nonexistent_model_12345"
+    response = client.get(f"/model/{invalid_id}")
+    assert response.status_code == 404
+    assert f"No model found with ID: {invalid_id}" in response.json()["detail"]

@@ -6,7 +6,7 @@ import base64
 import io
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from schema import RegisterModelRequest, TrainingRequest, TrainingResponse, TrainingConfig
+from schema import RegisterModelRequest, TrainingRequest, TrainingResponse, TrainingConfig, ModelSearchRequest
 from ml.train import package_model, train_intent_classifier
 app = FastAPI()
 
@@ -24,13 +24,120 @@ def redirect_to_docs():
     return RedirectResponse(url="/docs")
 
 # Endpoint to list available models
-@app.get("/model")
-def get_models():
+@app.get("/model/{model_id}")
+def get_model_info(model_id: str):
+    """
+    Retrieve detailed information about a specific model from MLflow.
+    
+    This endpoint attempts to find the model in two ways:
+    1. As a registered model in the MLflow Model Registry
+    2. As a specific run ID if not found in registry
+    
+    Parameters:
+        model_id (str): Either a registered model name or MLflow run ID
+        
+    Returns:
+        dict: Model information including:
+            - name: Model name (if registered)
+            - version: Latest version number (if registered)
+            - description: Model description
+            - creation_timestamp: When the model was created
+            - last_updated_timestamp: When the model was last modified
+            - intents: List of supported intent labels
+            - tags: Additional metadata tags
+            - run_info: Information about the training run
+            
+    Raises:
+        HTTPException(404): If no model is found with the specified ID
+        HTTPException(500): If there are errors accessing MLflow
+    """
+    try:
+        client = mlflow.tracking.MlflowClient()
+        model_info = {}
+        
+        # First try to get as registered model
+        try:
+            registered_model = client.get_registered_model(model_id)
+            latest_version = client.get_latest_versions(model_id, stages=["None"])[0]
+            
+            # Basic model info
+            model_info.update({
+                "name": registered_model.name,
+                "version": latest_version.version,
+                "description": registered_model.description,
+                "creation_timestamp": registered_model.creation_timestamp,
+                "last_updated_timestamp": registered_model.last_updated_timestamp,
+            })
+            
+            # Get all tags
+            tags = registered_model.tags if registered_model.tags else {}
+            
+            # Extract intent labels from tags
+            intents = [
+                tag.replace("intent_", "") 
+                for tag in tags.keys() 
+                if tag.startswith("intent_")
+            ]
+            
+            model_info["intents"] = intents
+            model_info["tags"] = {
+                k: v for k, v in tags.items() 
+                if not k.startswith("intent_")
+            }
+            
+            # Add run info if available
+            if latest_version.run_id:
+                run = client.get_run(latest_version.run_id)
+                model_info["run_info"] = {
+                    "run_id": run.info.run_id,
+                    "status": run.info.status,
+                    "start_time": run.info.start_time,
+                    "end_time": run.info.end_time,
+                    "metrics": run.data.metrics,
+                    "params": run.data.params
+                }
+                
+        except mlflow.exceptions.MlflowException:
+            # Try to get as run ID instead
+            try:
+                run = client.get_run(model_id)
+                model_info.update({
+                    "run_id": run.info.run_id,
+                    "status": run.info.status,
+                    "start_time": run.info.start_time,
+                    "end_time": run.info.end_time,
+                    "metrics": run.data.metrics,
+                    "params": run.data.params,
+                    "tags": run.data.tags
+                })
+                
+                # Load model to get intents
+                model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")
+                model_info["intents"] = model._model_impl.python_model.intent_labels
+                
+            except mlflow.exceptions.MlflowException:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No model found with ID: {model_id}"
+                )
+                
+        return model_info
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving model info: {str(e)}"
+        )
+
+@app.post("/model/search")
+def search_models(model_search_request: ModelSearchRequest):
     pass
 
 # Endpoint to update model information
 @app.put("/model/{model_id}")
-def update_model(model_id: int, model: RegisterModelRequest):
+def update_model(model_id: str, model: RegisterModelRequest):
     # Find the model with the given ID and update its information
     pass
 
