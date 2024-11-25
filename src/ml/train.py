@@ -12,7 +12,10 @@ from schema.schema import TrainingConfig
 
 logger = logging.getLogger('intent-service')
 
-def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingConfig = TrainingConfig()):
+def train_intent_classifier(
+    dataframe: pl.DataFrame,
+    training_config: TrainingConfig = TrainingConfig(),
+):
     """
     Train an intent classifier using the provided dataframe and training configuration.
     
@@ -85,7 +88,9 @@ def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingCo
                 # Forward pass
                 outputs = model(
                     **inputs, 
-                    labels=torch.tensor([intents.index(intent) for intent in intent_labels])
+                    labels=torch.tensor(
+                        [intents.index(intent) for intent in intent_labels]
+                    )
                 )
                 loss = outputs.loss
                 epoch_loss += loss.item()
@@ -98,7 +103,8 @@ def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingCo
             
             # Calculate and log metrics for the epoch
             avg_epoch_loss = epoch_loss / batch_count
-            logger.info(f"Epoch {epoch + 1}/{training_config.num_epochs}, Loss: {avg_epoch_loss:.4f}")
+            logger.info(f"Epoch {epoch + 1}/{training_config.num_epochs}, "
+                       f"Loss: {avg_epoch_loss:.4f}")
             
             mlflow.log_metrics({
                 "loss": avg_epoch_loss,
