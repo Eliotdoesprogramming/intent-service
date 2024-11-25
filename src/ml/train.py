@@ -25,9 +25,9 @@ def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingCo
     intents = dataframe['intent'].unique().to_list()
     
     # Initialize tokenizer and model using config
-    tokenizer = DistilBertTokenizer.from_pretrained(training_config.model_name)
+    tokenizer = DistilBertTokenizer.from_pretrained(training_config.base_model_name)
     model = DistilBertForSequenceClassification.from_pretrained(
-        training_config.model_name, 
+        training_config.base_model_name, 
         num_labels=len(intents)
     )
     
@@ -43,7 +43,7 @@ def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingCo
     with mlflow.start_run():
         # Log parameters
         mlflow.log_params({
-            "model_name": training_config.model_name,
+            "model_name": training_config.base_model_name,
             "learning_rate": training_config.learning_rate,
             "weight_decay": training_config.weight_decay,
             "num_epochs": training_config.num_epochs,

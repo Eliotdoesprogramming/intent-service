@@ -23,8 +23,68 @@ def update_model(model_id: int, model: IntentModel):
 # Endpoint to create and train a model
 @app.post("/models")
 def create_model(model: IntentModel):
-    # Add the new model to the list of models
-    pass
+    """Register an existing MLflow run as a named model in the MLflow Model Registry.
+    
+    Args:
+        model: IntentModel object containing model metadata and run_id
+        
+    Returns:
+        dict: Model registration details
+    """
+    try:
+        # Load the model to verify it exists
+        try:
+            mlflow.pyfunc.load_model(f"runs:/{model.id}/intent_model")
+        except mlflow.exceptions.MlflowException:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No model found with run ID: {model.id}"
+            )
+            
+        # Register the model
+        model_uri = f"runs:/{model.id}/intent_model"
+        registered_model = mlflow.register_model(
+            model_uri=model_uri,
+            name=model.name
+        )
+        
+        # Add description and tags
+        client = mlflow.tracking.MlflowClient()
+        client.update_registered_model(
+            name=registered_model.name,
+            description=model.description if model.description else None
+        )
+        
+        # Add intents as model tags
+        for intent in model.intents:
+            client.set_registered_model_tag(
+                name=registered_model.name,
+                key=f"intent_{intent}",
+                value="true"
+            )
+            
+        # Add any extra metadata as tags
+        for key, value in model.tags.items():
+            client.set_registered_model_tag(
+                name=registered_model.name,
+                key=key,
+                value=str(value)
+            )
+            
+        return {
+            "name": registered_model.name,
+            "version": registered_model.version,
+            "status": "success",
+            "message": f"Model {model.name} registered successfully"
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error registering model: {str(e)}"
+        )
 
 # Endpoint to delete a model
 @app.delete("/models/{model_id}")
@@ -35,6 +95,8 @@ def delete_model(model_id: int):
 @app.post("/train", response_model=TrainingResponse)
 async def train_model(request: TrainingRequest) -> dict:
     try:
+        if request.experiment_name:
+            mlflow.set_experiment(request.experiment_name)
         # Load dataset based on source type
         if request.dataset_source.source_type == "url":
             if not request.dataset_source.url:
@@ -95,7 +157,7 @@ async def train_model(request: TrainingRequest) -> dict:
         # Create training config
         training_config = request.training_config or TrainingConfig()
         if request.model_name:
-            training_config.model_name = request.model_name
+            training_config.base_model_name = request.model_name
             
         # Train the model with config
         model, intents, tokenizer = train_intent_classifier(data, training_config)
