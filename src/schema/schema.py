@@ -1,12 +1,10 @@
 from pydantic import BaseModel, HttpUrl
 from typing import Dict, List, Optional, Any, Literal
-import polars as pl
 
-class IntentModel(BaseModel):
+class RegisterModelRequest(BaseModel):
     id: str
     name: Optional[str] = None
     description: Optional[str] = None
-    intents: List[str]
     tags: Dict[str, Any] = {}
     class Config:
         arbitrary_types_allowed = True

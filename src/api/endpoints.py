@@ -5,9 +5,14 @@ import requests
 import base64
 import io
 from fastapi import FastAPI, HTTPException
-from schema import IntentModel, TrainingRequest, TrainingResponse, TrainingConfig
+from fastapi.responses import RedirectResponse
+from schema import RegisterModelRequest, TrainingRequest, TrainingResponse, TrainingConfig
 from ml.train import package_model, train_intent_classifier
 app = FastAPI()
+
+@app.get("/")
+def redirect_to_docs():
+    return RedirectResponse(url="/docs")
 
 # Endpoint to list available models
 @app.get("/models")
@@ -16,13 +21,13 @@ def get_models():
 
 # Endpoint to update model information
 @app.put("/models/{model_id}")
-def update_model(model_id: int, model: IntentModel):
+def update_model(model_id: int, model: RegisterModelRequest):
     # Find the model with the given ID and update its information
     pass
 
 # Endpoint to create and train a model
 @app.post("/models")
-def create_model(model: IntentModel):
+def create_model(model: RegisterModelRequest):
     """Register an existing MLflow run as a named model in the MLflow Model Registry.
     
     Args:
@@ -34,7 +39,9 @@ def create_model(model: IntentModel):
     try:
         # Load the model to verify it exists
         try:
-            mlflow.pyfunc.load_model(f"runs:/{model.id}/intent_model")
+            loaded_model = mlflow.pyfunc.load_model(f"runs:/{model.id}/intent_model")
+            intents = loaded_model._model_impl.python_model.intent_labels
+            del loaded_model
         except mlflow.exceptions.MlflowException:
             raise HTTPException(
                 status_code=404,
@@ -56,7 +63,7 @@ def create_model(model: IntentModel):
         )
         
         # Add intents as model tags
-        for intent in model.intents:
+        for intent in intents:
             client.set_registered_model_tag(
                 name=registered_model.name,
                 key=f"intent_{intent}",
