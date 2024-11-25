@@ -5,7 +5,7 @@ import mlflow
 import pandas as pd
 import polars as pl
 import torch
-from transformers import DistilBertForSequenceClassification, DistilBertTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from ml.mlflow import IntentModel
 from schema.schema import TrainingConfig
@@ -31,10 +31,12 @@ def train_intent_classifier(
     """
     intents = dataframe["intent"].unique().to_list()
 
-    # Initialize tokenizer and model using config
-    tokenizer = DistilBertTokenizer.from_pretrained(training_config.base_model_name)
-    model = DistilBertForSequenceClassification.from_pretrained(
-        training_config.base_model_name, num_labels=len(intents)
+    # Initialize tokenizer and model using AutoClasses
+    tokenizer = AutoTokenizer.from_pretrained(training_config.base_model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        training_config.base_model_name,
+        num_labels=len(intents),
+        problem_type="single_label_classification",
     )
 
     # Setup training
@@ -152,19 +154,19 @@ def package_model(model, intents, tokenizer):
 
     # Create an example input
     example_input = pd.DataFrame({"text": ["example text for signature"]})
-    
+
     # Define input and output schema
-    from mlflow.types.schema import Schema, ColSpec
-    input_schema = Schema([
-        ColSpec("string", "text")
-    ])
-    output_schema = Schema([
-        ColSpec("double", "scores"),  # Probability scores for each intent
-        ColSpec("string", "predicted_intent")  # Predicted intent label
-    ])
+    from mlflow.types.schema import ColSpec, Schema
+
+    input_schema = Schema([ColSpec("string", "text")])
+    output_schema = Schema(
+        [
+            ColSpec("double", "scores"),  # Probability scores for each intent
+            ColSpec("string", "predicted_intent"),  # Predicted intent label
+        ]
+    )
     signature = mlflow.models.signature.ModelSignature(
-        inputs=input_schema,
-        outputs=output_schema
+        inputs=input_schema, outputs=output_schema
     )
 
     # Log the model with its artifacts and signature
@@ -176,7 +178,7 @@ def package_model(model, intents, tokenizer):
             "tokenizer_path": os.path.join(artifact_path, "tokenizer"),
         },
         input_example=example_input,
-        signature=signature
+        signature=signature,
     )
     run_id = mlflow.active_run().info.run_id
     mlflow.end_run()

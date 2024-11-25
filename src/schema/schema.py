@@ -1,34 +1,87 @@
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class RegisterModelRequest(BaseModel):
-    mlflow_run_id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
-    tags: Dict[str, Any] = {}
+    mlflow_run_id: str = Field(..., description="MLflow run ID for the trained model")
+    name: Optional[str] = Field(
+        None,
+        description="Display name for the model",
+        examples=["intent-classifier-v1"],
+    )
+    description: Optional[str] = Field(
+        None, description="Detailed description of the model"
+    )
+    tags: Dict[str, Any] = Field(
+        default_factory=dict, description="Custom metadata tags for the model"
+    )
 
     class Config:
         arbitrary_types_allowed = True
 
 
 class DatasetSource(BaseModel):
-    source_type: Literal["url", "upload"]
-    url: Optional[HttpUrl] = None
-    file_content: Optional[str] = None  # Base64 encoded content
+    source_type: Literal["url", "upload"] = Field(
+        ..., description="Type of data source"
+    )
+    url: Optional[HttpUrl] = Field(None, description="URL to fetch dataset from")
+    file_content: Optional[str] = Field(
+        None, description="Base64 encoded dataset content"
+    )
 
 
 class TrainingConfig(BaseModel):
-    num_epochs: int = 10
-    batch_size: int = 32
-    learning_rate: float = 5e-5
-    base_model_name: str = "distilbert-base-uncased"
-    max_length: int = 128  # Max sequence length for tokenizer
-    warmup_steps: int = 0
-    weight_decay: float = 0.01
-    early_stopping_patience: Optional[int] = None
-    validation_split: Optional[float] = None
+    num_epochs: int = Field(
+        10, description="Number of training epochs", ge=1, examples=[5, 10, 20]
+    )
+    batch_size: int = Field(
+        32, description="Training batch size", ge=1, examples=[16, 32, 64]
+    )
+    learning_rate: float = Field(
+        5e-5,
+        description="Learning rate for optimization",
+        gt=0,
+        examples=[1e-5, 3e-5, 5e-5],
+    )
+    base_model_name: str = Field(
+        "distilbert-base-uncased",
+        description="Base model to use for fine-tuning",
+        examples=[
+            "bert-base-uncased",
+            "roberta-base",
+            "distilbert-base-uncased",
+            "albert-base-v2",
+            "xlm-roberta-base",
+            "microsoft/deberta-base",
+            "google/electra-base-discriminator",
+        ],
+    )
+    max_length: int = Field(
+        128,
+        description="Maximum sequence length for tokenizer",
+        ge=1,
+        examples=[128, 256, 512],
+    )
+    warmup_steps: int = Field(0, description="Number of warmup steps", ge=0)
+    weight_decay: float = Field(0.01, description="Weight decay for optimization", ge=0)
+    early_stopping_patience: Optional[int] = Field(
+        None,
+        description="Number of epochs to wait before early stopping",
+        examples=[3, 5],
+    )
+    validation_split: Optional[float] = Field(
+        None,
+        description="Fraction of data to use for validation",
+        ge=0.0,
+        le=1.0,
+        examples=[0.1, 0.2],
+    )
+
+    @field_validator("base_model_name")
+    def validate_model_name(cls, v):
+        # Optional: Add validation if you want to restrict to specific models
+        return v
 
 
 class TrainingRequest(BaseModel):
