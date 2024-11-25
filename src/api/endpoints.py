@@ -12,6 +12,15 @@ app = FastAPI()
 
 @app.get("/")
 def redirect_to_docs():
+    """
+    Redirects users to the interactive API documentation page.
+    
+    This endpoint automatically redirects all root path requests to the Swagger UI
+    documentation page, providing a user-friendly interface to explore and test the API.
+    
+    Returns:
+        RedirectResponse: A 302 redirect to the /docs endpoint
+    """
     return RedirectResponse(url="/docs")
 
 # Endpoint to list available models
@@ -28,13 +37,44 @@ def update_model(model_id: int, model: RegisterModelRequest):
 # Endpoint to create and train a model
 @app.post("/model/register")
 def register_model(model: RegisterModelRequest):
-    """Register an existing MLflow run as a named model in the MLflow Model Registry.
+    """
+    Register an existing MLflow run as a named model in the MLflow Model Registry.
     
-    Args:
-        model: IntentModel object containing model metadata and run_id
-        
+    This endpoint performs the following operations:
+    1. Verifies the existence of the model in the specified MLflow run
+    2. Loads the model to extract intent labels
+    3. Registers the model with the provided name in MLflow's Model Registry
+    4. Adds model description and metadata as registry tags
+    5. Records all supported intents as model tags for discoverability
+    
+    Parameters:
+        model (RegisterModelRequest): Model registration details including:
+            - name: Name for the registered model (must be unique in registry)
+            - mlflow_run_id: ID of the MLflow run containing the model
+            - description: Optional description of the model's purpose and characteristics
+            - tags: Optional dictionary of additional metadata tags for filtering and organization
+    
     Returns:
-        dict: Model registration details
+        dict: Registration result containing:
+            - name: Name of the registered model
+            - version: Version number assigned by MLflow
+            - status: Registration status ("success" or "error")
+            - message: Detailed success/failure message
+            
+    Raises:
+        HTTPException(404): If no model exists with the specified run ID or if the run doesn't contain
+                          a valid intent classification model
+        HTTPException(500): If registration fails due to:
+                          - Name conflicts in the registry
+                          - Invalid model format
+                          - MLflow connection issues
+                          - Other unexpected errors
+    
+    Notes:
+        - Model names must be unique in the registry
+        - Existing models with the same name will create a new version
+        - All intent labels are automatically extracted and stored as tags
+        - Custom tags can be used for filtering and organization
     """
     try:
         # Load the model to verify it exists
@@ -101,6 +141,60 @@ def delete_model(model_id: int):
 
 @app.post("/model/train", response_model=TrainingResponse)
 async def train_model(request: TrainingRequest) -> dict:
+    """
+    Train a new intent classification model using the provided dataset and configuration.
+    
+    This endpoint handles the complete training pipeline:
+    1. Dataset loading and validation from either URL or direct upload
+    2. Data preprocessing and integrity checks
+    3. Model training with specified configuration
+    4. Model packaging and MLflow tracking
+    
+    The training process supports two data source types:
+    - URL: Downloads CSV data from a specified URL
+    - Upload: Accepts base64 encoded CSV content directly
+    
+    Parameters:
+        request (TrainingRequest): Training configuration including:
+            - dataset_source: Source configuration for training data
+                - source_type: Either 'url' or 'upload'
+                - url: URL to download dataset (required if source_type is 'url')
+                - file_content: Base64 encoded CSV content (required if source_type is 'upload')
+            - intents: List of valid intents for classification (must match dataset)
+            - experiment_name: Optional MLflow experiment name for organization
+            - model_name: Optional base model name to use for training
+            - training_config: Optional custom training parameters including:
+                - learning_rate
+                - batch_size
+                - epochs
+                - etc.
+    
+    Returns:
+        TrainingResponse: Training result containing:
+            - model_id: MLflow run ID of the trained model (used for registration/prediction)
+            - status: Training status ("success" or "error")
+            - message: Detailed success/failure message
+            
+    Raises:
+        HTTPException(400): If:
+            - Dataset format is invalid (missing required columns)
+            - Dataset contains intents not specified in configuration
+            - URL is inaccessible or returns invalid data
+            - Base64 content is malformed
+            - Training configuration is invalid
+        HTTPException(500): If training fails due to:
+            - Insufficient data
+            - Resource constraints
+            - MLflow tracking issues
+            - Model packaging failures
+    
+    Notes:
+        - Dataset must contain 'intent' and 'text' columns
+        - All intents in the dataset must be included in the request's intent list
+        - Training progress is tracked in MLflow for reproducibility
+        - Large datasets may require significant processing time
+        - The endpoint is asynchronous to handle long-running training jobs
+    """
     try:
         if request.experiment_name:
             mlflow.set_experiment(request.experiment_name)
@@ -183,6 +277,49 @@ async def train_model(request: TrainingRequest) -> dict:
 
 @app.post("/model/{model_id}/predict")
 def predict(model_id: str, text: str) -> dict:
+    """
+    Generate intent predictions for a given text using a specified model.
+    
+    This endpoint provides flexible model loading and prediction:
+    1. Attempts to load the model from the registry using the model_id as name
+    2. If not found, attempts to load directly from MLflow run
+    3. Processes the input text and generates confidence scores for all intents
+    
+    The prediction process:
+    1. Loads the specified model (registered or from run)
+    2. Preprocesses the input text using the model's tokenizer
+    3. Generates confidence scores for all possible intents
+    4. Returns scores as a normalized probability distribution
+    
+    Parameters:
+        model_id (str): ID of the model to use, can be either:
+            - A registered model name (loads latest version)
+            - An MLflow run ID (loads specific run)
+        text (str): Input text to classify (should be non-empty)
+    
+    Returns:
+        dict: Dictionary containing:
+            - Keys: All possible intent labels
+            - Values: Confidence scores (0.0 to 1.0) for each intent
+            Example: {"intent1": 0.8, "intent2": 0.15, "intent3": 0.05}
+            
+    Raises:
+        HTTPException(404): If:
+            - No registered model exists with the specified name
+            - No run exists with the specified ID
+            - Model exists but is not a valid intent classifier
+        HTTPException(500): If prediction fails due to:
+            - Model loading errors
+            - Invalid model format
+            - Text preprocessing failures
+            - Resource constraints
+    
+    Notes:
+        - Confidence scores sum to 1.0 across all intents
+        - Empty or very short texts may result in unreliable predictions
+        - Model loading time may vary based on size and storage location
+        - Registered models always use the latest version unless specified
+    """
     try:
         # First try loading as a registered model
         try:
