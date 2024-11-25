@@ -1,14 +1,16 @@
-import pytest
-from fastapi.testclient import TestClient
-from api.endpoints import app
-import polars as pl
-from ml.train import package_model, train_intent_classifier
-from schema.schema import TrainingConfig
 import base64
-from unittest.mock import patch
 import io
 import logging
 import time
+from unittest.mock import patch
+
+import polars as pl
+import pytest
+from fastapi.testclient import TestClient
+
+from api.endpoints import app
+from ml.train import package_model, train_intent_classifier
+from schema.schema import TrainingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +120,7 @@ def test_predict_invalid_model(client):
         f"/model/{id}/predict",
         params={"text": "hello"}
     )
-    assert response.status_code == 400
+    assert response.status_code == 404
     assert f"Model ID {id} not found" in response.json()["detail"]
 
 def test_train_endpoint_with_url(client, mock_csv_content,default_training_config):
@@ -225,7 +227,7 @@ def test_get_model_info(client, trained_model):
     assert register_response.status_code == 200
     
     # Test getting info for registered model
-    response = client.get(f"/model/test_model_info")
+    response = client.get("/model/test_model_info")
     assert response.status_code == 200
     model_info = response.json()
     

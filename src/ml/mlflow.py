@@ -1,6 +1,8 @@
+import os
+
 import mlflow
 import torch
-import os
+
 
 class IntentModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):

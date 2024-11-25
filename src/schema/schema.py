@@ -1,5 +1,7 @@
+from typing import Any, Dict, List, Literal, Optional
+
 from pydantic import BaseModel, HttpUrl
-from typing import Dict, List, Optional, Any, Literal
+
 
 class RegisterModelRequest(BaseModel):
     mlflow_run_id: str

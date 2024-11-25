@@ -1,8 +1,8 @@
-from ml import train_intent_classifier
-import polars as pl
 import mlflow
 import pandas as pd
+import polars as pl
 
+from ml import train_intent_classifier
 from ml.train import package_model
 
 intents = {

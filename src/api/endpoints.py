@@ -1,13 +1,22 @@
-import polars as pl
-import mlflow
-import pandas as pd
-import requests
 import base64
 import io
+
+import mlflow
+import pandas as pd
+import polars as pl
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from schema import RegisterModelRequest, TrainingRequest, TrainingResponse, TrainingConfig, ModelSearchRequest
+
 from ml.train import package_model, train_intent_classifier
+from schema import (
+    ModelSearchRequest,
+    RegisterModelRequest,
+    TrainingConfig,
+    TrainingRequest,
+    TrainingResponse,
+)
+
 app = FastAPI()
 
 @app.get("/")
@@ -20,7 +29,7 @@ async def redirect_to_docs():
     
     Returns:
         RedirectResponse: A 302 redirect to the /docs endpoint  
-    """
+    """ 
     return RedirectResponse(url="/docs")
 
 # Endpoint to list available models

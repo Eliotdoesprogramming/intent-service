@@ -1,6 +1,10 @@
-import uvicorn
 import os
+
+import uvicorn
+
 from api import app
+
+
 def main():
     if os.getenv("ENVIRONMENT") == "prod":
         uvicorn.run(

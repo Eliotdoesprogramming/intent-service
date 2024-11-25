@@ -1,12 +1,15 @@
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
-import torch
-import polars as pl
-import mlflow
-import pandas as pd
 import logging
 import os
+
+import mlflow
+import pandas as pd
+import polars as pl
+import torch
+from transformers import DistilBertForSequenceClassification, DistilBertTokenizer
+
 from ml.mlflow import IntentModel
 from schema.schema import TrainingConfig
+
 logger = logging.getLogger('intent-service')
 
 def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingConfig = TrainingConfig()):
