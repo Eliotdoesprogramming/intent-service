@@ -1,7 +1,6 @@
 import mlflow
 import torch
 from transformers import DistilBertTokenizer
-import numpy as np
 import os
 
 class IntentModel(mlflow.pyfunc.PythonModel):
