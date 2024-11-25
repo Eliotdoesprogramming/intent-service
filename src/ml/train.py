@@ -6,34 +6,99 @@ import pandas as pd
 import logging
 import os
 from ml.mlflow import IntentModel
+from schema.schema import TrainingConfig
 logger = logging.getLogger('intent-service')
 
-def train_intent_classifier(dataframe: pl.DataFrame):
+def train_intent_classifier(dataframe: pl.DataFrame, training_config: TrainingConfig):
     """
-    dataframe:
-        A pandas dataframe with the following columns:
-        - intent: The intent label of the text
-        - text: The text to classify
+    Train an intent classifier using the provided dataframe and training configuration.
+    
+    Args:
+        dataframe: A polars dataframe with columns:
+            - intent: The intent label of the text
+            - text: The text to classify
+        training_config: Configuration parameters for training
+            
+    Returns:
+        tuple: (trained model, list of intents, tokenizer)
     """
     intents = dataframe['intent'].unique().to_list()
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=len(intents))
+    
+    # Initialize tokenizer and model using config
+    tokenizer = DistilBertTokenizer.from_pretrained(training_config.model_name)
+    model = DistilBertForSequenceClassification.from_pretrained(
+        training_config.model_name, 
+        num_labels=len(intents)
+    )
+    
+    # Setup training
     model.train()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
-    for i in range(10):
-        print(f"Epoch {i}")
-        for batch in range(0, len(dataframe), 32):
-            batch_df = dataframe.slice(offset=batch, length=min(32, len(dataframe) - batch))
+    optimizer = torch.optim.AdamW(
+        model.parameters(), 
+        lr=training_config.learning_rate,
+        weight_decay=training_config.weight_decay
+    )
+    
+    # Training loop
+    best_loss = float('inf')
+    patience_counter = 0
+    
+    for epoch in range(training_config.num_epochs):
+        epoch_loss = 0
+        batch_count = 0
+        
+        for batch_start in range(0, len(dataframe), training_config.batch_size):
+            # Prepare batch
+            batch_df = dataframe.slice(
+                offset=batch_start, 
+                length=min(training_config.batch_size, len(dataframe) - batch_start)
+            )
             texts = batch_df['text'].to_list()
             intent_labels = batch_df['intent'].to_list()
-            inputs = tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
-            outputs = model(**inputs, labels=torch.tensor([intents.index(intent) for intent in intent_labels]))
+            
+            # Tokenize with max length from config
+            inputs = tokenizer(
+                texts, 
+                return_tensors='pt', 
+                padding=True, 
+                truncation=True,
+                max_length=training_config.max_length
+            )
+            
+            # Forward pass
+            outputs = model(
+                **inputs, 
+                labels=torch.tensor([intents.index(intent) for intent in intent_labels])
+            )
             loss = outputs.loss
+            epoch_loss += loss.item()
+            batch_count += 1
+            
+            # Backward pass
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-    model.eval()
+        
+        # Calculate average epoch loss
+        avg_epoch_loss = epoch_loss / batch_count
+        logger.info(f"Epoch {epoch + 1}/{training_config.num_epochs}, Loss: {avg_epoch_loss:.4f}")
+        
+        # Early stopping check
+        if training_config.early_stopping_patience:
+            if avg_epoch_loss < best_loss:
+                best_loss = avg_epoch_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                
+            if patience_counter >= training_config.early_stopping_patience:
+                logger.info(f"Early stopping triggered after {epoch + 1} epochs")
+                break
     
+    model.eval()
+    return model, intents, tokenizer
+
+def package_model(model, intents, tokenizer):
     # After training is complete:
     with mlflow.start_run() as run:
         # Save model artifacts

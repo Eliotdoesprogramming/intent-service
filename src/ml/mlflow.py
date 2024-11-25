@@ -1,15 +1,14 @@
 import mlflow
 import torch
-from transformers import DistilBertTokenizer
-import numpy as np
 import os
 
 class IntentModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
+        from transformers import DistilBertTokenizer
         """Load the model artifacts"""
-        self.model = torch.load(os.path.join(context.artifacts["model_path"], "model.pth"))
+        self.model = torch.load(os.path.join(context.artifacts["model_path"], "model.pth"), weights_only=False)
         self.tokenizer = DistilBertTokenizer.from_pretrained(context.artifacts["tokenizer_path"])
-        self.intent_labels = torch.load(os.path.join(context.artifacts["model_path"], "intent_labels.pth"))
+        self.intent_labels = torch.load(os.path.join(context.artifacts["model_path"], "intent_labels.pth"), weights_only=False)
         self.model.eval()
     
     def predict(self, context, model_input):

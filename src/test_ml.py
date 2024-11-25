@@ -71,6 +71,7 @@ def test_intent_classifier():
         for intent, score in sorted_intents:
             print(f"  {intent}: {score:.3f}")
 
+
 if __name__ == "__main__":
     test_intent_classifier()
 
