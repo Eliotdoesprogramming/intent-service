@@ -99,7 +99,25 @@ class TrainingResponse(BaseModel):
 
 
 class ModelSearchRequest(BaseModel):
-    tags: Optional[Dict[str, str]] = None  # Tag key-value pairs to filter by
-    intents: Optional[List[str]] = None  # List of required intents
-    name_contains: Optional[str] = None  # Substring to match in model names
-    limit: Optional[int] = 100  # Maximum number of results to return
+    tags: Optional[Dict[str, str]] = Field(
+        None,
+        description="Tag key-value pairs to filter models by",
+        examples=[{"framework": "pytorch", "task": "intent"}],
+    )
+    intents: Optional[List[str]] = Field(
+        None,
+        description="List of required intents that the model must support",
+        examples=[["greeting", "farewell", "help_request"]],
+    )
+    name_contains: Optional[str] = Field(
+        None,
+        description="Substring to match in model names for filtering",
+        examples=["intent", "bert"],
+    )
+    limit: Optional[int] = Field(
+        100,
+        description="Maximum number of models to return in the response",
+        ge=1,
+        le=1000,
+        examples=[10, 50, 100],
+    )
