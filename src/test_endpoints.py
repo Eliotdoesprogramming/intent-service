@@ -14,9 +14,11 @@ from schema.schema import TrainingConfig
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 def default_training_config():
@@ -25,30 +27,56 @@ def default_training_config():
         num_epochs=2,  # Reduced for faster testing
         batch_size=32,
         learning_rate=5e-5,
-        base_model_name='distilbert-base-uncased',
+        base_model_name="distilbert-base-uncased",
         max_length=128,
         warmup_steps=0,
         weight_decay=0.01,
-        early_stopping_patience=None
+        early_stopping_patience=None,
     )
     return config  # Return the config object directly
+
 
 @pytest.fixture
 def sample_training_data():
     """Fixture for sample training data"""
     intents = {
         "intent": [
-            "greeting", "greeting", "greeting", "greeting", "greeting",
-            "farewell", "farewell", "farewell", "farewell", "farewell", 
-            "help_request", "help_request", "help_request", "help_request", "help_request"
+            "greeting",
+            "greeting",
+            "greeting",
+            "greeting",
+            "greeting",
+            "farewell",
+            "farewell",
+            "farewell",
+            "farewell",
+            "farewell",
+            "help_request",
+            "help_request",
+            "help_request",
+            "help_request",
+            "help_request",
         ],
         "text": [
-            "hello there", "hi", "hey", "good morning", "greetings",
-            "goodbye", "bye", "see you later", "farewell", "take care",
-            "can you help me", "i need assistance", "help please", "could you assist me", "need some help"
-        ]
+            "hello there",
+            "hi",
+            "hey",
+            "good morning",
+            "greetings",
+            "goodbye",
+            "bye",
+            "see you later",
+            "farewell",
+            "take care",
+            "can you help me",
+            "i need assistance",
+            "help please",
+            "could you assist me",
+            "need some help",
+        ],
     }
     return pl.DataFrame(intents)
+
 
 @pytest.fixture
 def trained_model(sample_training_data):
@@ -59,8 +87,9 @@ def trained_model(sample_training_data):
         "run_id": run_id,
         "model": model,
         "intents_list": intents_list,
-        "tokenizer": tokenizer
+        "tokenizer": tokenizer,
     }
+
 
 @pytest.fixture
 def mock_csv_content():
@@ -79,73 +108,64 @@ help_request,i need help with something
 help_request,could you help me out
 help_request,having trouble with this"""
 
+
 def test_predict_endpoint(client, trained_model):
     run_id = trained_model["run_id"]
     test_cases = [
-        {
-            "text": "hi there",
-            "expected_intents": ["greeting"]
-        },
-        {
-            "text": "bye bye",
-            "expected_intents": ["farewell"]
-        },
-        {
-            "text": "I need assistance",
-            "expected_intents": ["help_request"]
-        }
+        {"text": "hi there", "expected_intents": ["greeting"]},
+        {"text": "bye bye", "expected_intents": ["farewell"]},
+        {"text": "I need assistance", "expected_intents": ["help_request"]},
     ]
-    
+
     for test_case in test_cases:
         start_time = time.time()
         response = client.post(
-            f"/model/{run_id}/predict",
-            params={"text": test_case["text"]}
+            f"/model/{run_id}/predict", params={"text": test_case["text"]}
         )
         end_time = time.time()
         execution_time = end_time - start_time
         print(f"Predict endpoint execution time: {execution_time:.4f} seconds")
-        
+
         assert response.status_code == 200
         prediction = response.json()
         assert isinstance(prediction, dict)
-        
+
         top_intent = max(prediction.items(), key=lambda x: x[1])[0]
         assert top_intent in test_case["expected_intents"]
         assert all(0 <= score <= 1 for score in prediction.values())
 
+
 def test_predict_invalid_model(client):
     id = "99999"
-    response = client.post(
-        f"/model/{id}/predict",
-        params={"text": "hello"}
-    )
+    response = client.post(f"/model/{id}/predict", params={"text": "hello"})
     assert response.status_code == 404
     assert f"Model ID {id} not found" in response.json()["detail"]
 
-def test_train_endpoint_with_url(client, mock_csv_content,default_training_config):
-    with patch('requests.get') as mock_get:
+
+def test_train_endpoint_with_url(client, mock_csv_content, default_training_config):
+    with patch("requests.get") as mock_get:
         mock_response = mock_get.return_value
         mock_response.status_code = 200
         mock_response.text = mock_csv_content.encode()
         mock_response.iter_lines = lambda: io.StringIO(mock_csv_content).readlines()
-        
+
         request = {
             "name": "test_model",
             "description": "Test model",
             "intents": ["greeting", "farewell", "help_request"],
             "dataset_source": {
                 "source_type": "url",
-                "url": "https://example.com/dataset.csv"
+                "url": "https://example.com/dataset.csv",
             },
-            "training_config": default_training_config.dict()
+            "training_config": default_training_config.dict(),
         }
-        
+
         response = client.post("/model/train", json=request)
         assert response.status_code == 200
         assert "model_id" in response.json()
         assert response.json()["status"] == "success"
         mock_get.assert_called_once_with("https://example.com/dataset.csv")
+
 
 def test_train_endpoint_with_upload(client, mock_csv_content, default_training_config):
     encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
@@ -154,17 +174,15 @@ def test_train_endpoint_with_upload(client, mock_csv_content, default_training_c
         "name": "test_model",
         "description": "Test model",
         "intents": ["greeting", "farewell", "help_request"],
-        "dataset_source": {
-            "source_type": "upload",
-            "file_content": encoded_content
-        },
-        "training_config": default_training_config.dict()
+        "dataset_source": {"source_type": "upload", "file_content": encoded_content},
+        "training_config": default_training_config.dict(),
     }
-    
+
     response = client.post("/model/train", json=request)
     assert response.status_code == 200
     assert "model_id" in response.json()
     assert response.json()["status"] == "success"
+
 
 def test_create_model(client, trained_model):
     run_id = trained_model["run_id"]
@@ -176,14 +194,11 @@ def test_create_model(client, trained_model):
         "dataset": {
             "id": 1,
             "collection_name": "test_collection",
-            "description": "Test dataset"
+            "description": "Test dataset",
         },
-        "extra_data": {
-            "test_accuracy": 0.95,
-            "created_date": "2024-03-21"
-        }
+        "extra_data": {"test_accuracy": 0.95, "created_date": "2024-03-21"},
     }
-    
+
     # Test successful model registration
     response = client.post("/model/register", json=model_request)
     model_version = response.json()["version"]
@@ -191,14 +206,14 @@ def test_create_model(client, trained_model):
     result = response.json()
     assert result["name"] == "test_intent_model"
     assert result["status"] == "success"
-    
+
     # Test registering non-existent model
     invalid_request = model_request.copy()
     invalid_request["mlflow_run_id"] = "99999"
     response = client.post("/model/register", json=invalid_request)
     assert response.status_code == 404
     assert "No model found with run ID" in response.json()["detail"]
-    
+
     # Test registering with duplicate name
     # should create a new version of the model
     duplicate_request = model_request.copy()
@@ -207,30 +222,28 @@ def test_create_model(client, trained_model):
     assert response.status_code == 200
     assert response.json()["version"] != model_version
 
+
 def test_get_model_info(client, trained_model):
     """Test the get_model_info endpoint with both registered and unregistered models"""
-    
+
     # First register a model to test registered model path
     run_id = trained_model["run_id"]
     model_request = {
         "mlflow_run_id": run_id,
         "name": "test_model_info",
         "description": "Test model for info endpoint",
-        "tags": {
-            "test_tag": "test_value",
-            "environment": "testing"
-        }
+        "tags": {"test_tag": "test_value", "environment": "testing"},
     }
-    
+
     # Register the model first
     register_response = client.post("/model/register", json=model_request)
     assert register_response.status_code == 200
-    
+
     # Test getting info for registered model
     response = client.get("/model/test_model_info")
     assert response.status_code == 200
     model_info = response.json()
-    
+
     # Verify registered model information
     assert model_info["name"] == "test_model_info"
     assert model_info["description"] == "Test model for info endpoint"
@@ -242,12 +255,12 @@ def test_get_model_info(client, trained_model):
     assert model_info["tags"]["test_tag"] == "test_value"
     assert model_info["tags"]["environment"] == "testing"
     assert "run_info" in model_info
-    
+
     # Test getting info using run ID directly
     response = client.get(f"/model/{run_id}")
     assert response.status_code == 200
     run_info = response.json()
-    
+
     # Verify run information
     assert run_info["run_id"] == run_id
     assert "status" in run_info
@@ -255,92 +268,76 @@ def test_get_model_info(client, trained_model):
     assert "params" in run_info
     assert "intents" in run_info
     assert isinstance(run_info["intents"], list)
-    
+
     # Test invalid model ID
     invalid_id = "nonexistent_model_12345"
     response = client.get(f"/model/{invalid_id}")
     assert response.status_code == 404
     assert f"No model found with ID: {invalid_id}" in response.json()["detail"]
 
+
 def test_search_models(client, trained_model):
     """Test the model search endpoint with various search criteria"""
-    
+
     # First register a few models with different tags and intents
     run_id = trained_model["run_id"]
-    
+
     # Register first model
     model1_request = {
         "mlflow_run_id": run_id,
         "name": "prod_model_v1",
         "description": "Production model version 1",
-        "tags": {
-            "environment": "production",
-            "version": "1.0",
-            "team": "nlp"
-        }
+        "tags": {"environment": "production", "version": "1.0", "team": "nlp"},
     }
-    
+
     # Register second model
     model2_request = {
         "mlflow_run_id": run_id,
         "name": "test_bert_v1",
         "description": "Test BERT model",
-        "tags": {
-            "environment": "testing",
-            "version": "1.0",
-            "model_type": "bert"
-        }
+        "tags": {"environment": "testing", "version": "1.0", "model_type": "bert"},
     }
-    
+
     # Register both models
     response1 = client.post("/model/register", json=model1_request)
     assert response1.status_code == 200
     response2 = client.post("/model/register", json=model2_request)
     assert response2.status_code == 200
-    
+
     # Test 1: Search by tag
-    search_request = {
-        "tags": {"environment": "production"}
-    }
+    search_request = {"tags": {"environment": "production"}}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
     results = response.json()
     assert len(results) >= 1
     assert any(model["name"] == "prod_model_v1" for model in results)
-    assert all(
-        model["tags"].get("environment") == "production" 
-        for model in results
-    )
-    
+    assert all(model["tags"].get("environment") == "production" for model in results)
+
     # Test 2: Search by name pattern
-    search_request = {
-        "name_contains": "bert"
-    }
+    search_request = {"name_contains": "bert"}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
     results = response.json()
     assert len(results) >= 1
     assert any(model["name"] == "test_bert_v1" for model in results)
-    
+
     # Test 3: Search by intents
-    search_request = {
-        "intents": ["greeting", "farewell"]
-    }
+    search_request = {"intents": ["greeting", "farewell"]}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
     results = response.json()
     assert len(results) >= 1
     assert all(
-        set(["greeting", "farewell"]).issubset(set(model["intents"])) 
+        set(["greeting", "farewell"]).issubset(set(model["intents"]))
         for model in results
     )
-    
+
     # Test 4: Combined search criteria
     search_request = {
         "tags": {"environment": "testing"},
         "name_contains": "bert",
         "intents": ["greeting"],
-        "limit": 1
+        "limit": 1,
     }
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
@@ -350,21 +347,15 @@ def test_search_models(client, trained_model):
         assert results[0]["name"] == "test_bert_v1"
         assert results[0]["tags"]["environment"] == "testing"
         assert "greeting" in results[0]["intents"]
-    
+
     # Test 5: Search with no results
-    search_request = {
-        "tags": {"environment": "nonexistent"}
-    }
+    search_request = {"tags": {"environment": "nonexistent"}}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
     results = response.json()
     assert len(results) == 0
-    
+
     # Test 6: Invalid search request (should still return 200 with empty results)
-    search_request = {
-        "tags": None,
-        "intents": None,
-        "name_contains": None
-    }
+    search_request = {"tags": None, "intents": None, "name_contains": None}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
