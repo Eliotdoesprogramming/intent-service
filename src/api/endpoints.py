@@ -499,7 +499,7 @@ async def train_model(request: TrainingRequest) -> dict:
 
         # Validate intents in dataset match requested intents
         unique_intents = set(data["intent"].unique().to_list())
-        if not unique_intents.issubset(set(request.intents)):
+        if request.intents and not set(request.intents).issubset(unique_intents):
             raise HTTPException(
                 status_code=400,
                 detail="Dataset contains intents not specified in the model configuration",
@@ -507,8 +507,6 @@ async def train_model(request: TrainingRequest) -> dict:
 
         # Create training config
         training_config = request.training_config or TrainingConfig()
-        if request.model_name:
-            training_config.base_model_name = request.model_name
 
         # Train the model with config
         model, intents, tokenizer = train_intent_classifier(data, training_config)

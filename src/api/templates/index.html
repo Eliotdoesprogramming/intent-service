@@ -37,66 +37,121 @@
         <!-- Model Training Section -->
         <div class="bg-white rounded-lg shadow-md p-6">
             <h2 class="text-xl font-semibold mb-4">Train New Model</h2>
-            <form hx-post="/model/train" 
-                  hx-target="#trainingResult" 
-                  class="space-y-4"
-                  id="trainForm">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Dataset Source</label>
-                    <select name="dataset_source.source_type" 
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                            id="sourceType"
-                            onchange="toggleSourceInputs()">
-                        <option value="url">URL</option>
-                        <option value="upload">File Upload</option>
-                    </select>
-                </div>
-                
-                <!-- URL Input -->
-                <div id="urlInput">
-                    <label class="block text-sm font-medium text-gray-700">Dataset URL</label>
-                    <input type="url" 
-                           name="dataset_source.url" 
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
-                           placeholder="https://example.com/dataset.csv">
-                </div>
-
-                <!-- File Upload Input -->
-                <div id="fileInput" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700">Upload CSV File</label>
-                    <div class="mt-1 flex items-center space-x-2">
-                        <input type="file" 
-                               id="csvFile" 
-                               accept=".csv"
-                               class="block w-full text-sm text-gray-500
-                                      file:mr-4 file:py-2 file:px-4
-                                      file:rounded-md file:border-0
-                                      file:text-sm file:font-semibold
-                                      file:bg-indigo-50 file:text-indigo-700
-                                      hover:file:bg-indigo-100">
-                        <div id="fileStatus" class="text-sm text-gray-500"></div>
+            <form id="trainForm" class="space-y-4">
+                <!-- Dataset Source Section -->
+                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-900">Dataset Source</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Source Type</label>
+                        <select id="sourceType" 
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                onchange="toggleSourceInputs()">
+                            <option value="url">URL</option>
+                            <option value="upload">File Upload</option>
+                        </select>
                     </div>
-                    <!-- Hidden input for base64 data -->
-                    <input type="hidden" name="dataset_source.file_content" id="fileContent">
+                    
+                    <!-- URL Input -->
+                    <div id="urlInput">
+                        <label class="block text-sm font-medium text-gray-700">Dataset URL</label>
+                        <input type="url" 
+                               id="datasetUrl"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               placeholder="https://example.com/dataset.csv">
+                    </div>
+
+                    <!-- File Upload Input -->
+                    <div id="fileInput" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700">Upload CSV File</label>
+                        <div class="mt-1 flex items-center space-x-2">
+                            <input type="file" 
+                                   id="csvFile" 
+                                   accept=".csv"
+                                   class="block w-full text-sm text-gray-500
+                                          file:mr-4 file:py-2 file:px-4
+                                          file:rounded-md file:border-0
+                                          file:text-sm file:font-semibold
+                                          file:bg-indigo-50 file:text-indigo-700
+                                          hover:file:bg-indigo-100">
+                            <div id="fileStatus" class="text-sm text-gray-500"></div>
+                        </div>
+                        <!-- Hidden input for base64 data -->
+                        <input type="hidden" id="fileContent">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Intents (comma-separated)</label>
-                    <input type="text" 
-                           name="intents" 
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
-                           placeholder="intent1,intent2,intent3">
+                <!-- Model Configuration -->
+                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-900">Model Configuration</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Model Name (optional)</label>
+                        <input type="text" 
+                               id="modelName"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               placeholder="my-intent-model">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Experiment Name (optional)</label>
+                        <input type="text" 
+                               id="experimentName"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               placeholder="my-experiment">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Intents (comma-separated)</label>
+                        <input type="text" 
+                               id="intents"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               placeholder="greeting,farewell,help_request">
+                        <p class="mt-1 text-sm text-gray-500">Must match the intents in your dataset</p>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Experiment Name (optional)</label>
-                    <input type="text" 
-                           name="experiment_name" 
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <!-- Training Configuration -->
+                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-900">Training Configuration</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Number of Epochs</label>
+                            <input type="number" 
+                                   id="numEpochs"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   value="10" min="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Batch Size</label>
+                            <input type="number" 
+                                   id="batchSize"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   value="32" min="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Learning Rate</label>
+                            <input type="number" 
+                                   id="learningRate"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   value="0.00005" step="0.00001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Base Model Name</label>
+                            <select id="baseModel" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="distilbert-base-uncased">DistilBERT Base Uncased (Default)</option>
+                                <option value="bert-base-uncased">BERT Base Uncased</option>
+                                <option value="roberta-base">RoBERTa Base</option>
+                                <option value="albert-base-v2">ALBERT Base v2</option>
+                                <option value="xlm-roberta-base">XLM-RoBERTa Base</option>
+                                <option value="microsoft/deberta-base">Microsoft DeBERTa Base</option>
+                                <option value="google/electra-base-discriminator">Google ELECTRA Base Discriminator</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">Pre-trained model to use as the base for fine-tuning</p>
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" 
-                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                         id="trainButton">
                     Train Model
                 </button>
@@ -263,7 +318,7 @@
         }
 
         // Handle file selection and conversion to base64
-        document.getElementById('csvFile').addEventListener('change', async function(e) {
+        document.getElementById('csvFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
             const fileStatus = document.getElementById('fileStatus');
             const fileContent = document.getElementById('fileContent');
@@ -281,43 +336,119 @@
                 fileStatus.classList.remove('text-red-500');
                 trainButton.disabled = true;
 
-                try {
-                    const base64Content = await convertFileToBase64(file);
-                    fileContent.value = base64Content;
-                    fileStatus.textContent = 'File ready';
-                    trainButton.disabled = false;
-                } catch (error) {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    try {
+                        // Get the raw content as base64
+                        const base64Content = event.target.result.split(',')[1];
+                        fileContent.value = base64Content;
+                        fileStatus.textContent = 'File ready';
+                        fileStatus.classList.remove('text-red-500');
+                        trainButton.disabled = false;
+                    } catch (error) {
+                        console.error('Error processing file:', error);
+                        fileStatus.textContent = 'Error reading file';
+                        fileStatus.classList.add('text-red-500');
+                        trainButton.disabled = true;
+                    }
+                };
+
+                reader.onerror = function() {
+                    console.error('Error reading file');
                     fileStatus.textContent = 'Error reading file';
                     fileStatus.classList.add('text-red-500');
                     trainButton.disabled = true;
-                }
+                };
+
+                // Read the file as data URL (this will give us base64)
+                reader.readAsDataURL(file);
             }
         });
 
-        function convertFileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    // Extract the base64 content without the data URL prefix
-                    const base64Content = reader.result.split(',')[1];
-                    resolve(base64Content);
+        // Handle training form submission
+        document.getElementById('trainForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const trainButton = document.getElementById('trainButton');
+            const resultDiv = document.getElementById('trainingResult');
+            
+            try {
+                trainButton.disabled = true;
+                trainButton.textContent = 'Training...';
+                resultDiv.innerHTML = '<div class="text-blue-600">Starting training process...</div>';
+
+                // Prepare the request payload
+                const sourceType = document.getElementById('sourceType').value;
+                const intentsString = document.getElementById('intents').value;
+                
+                if (!intentsString) {
+                    throw new Error('Please specify the intents');
+                }
+
+                const payload = {
+                    dataset_source: {
+                        source_type: sourceType
+                    },
+                    intents: intentsString.split(',').map(i => i.trim()).filter(i => i),
+                    model_name: document.getElementById('modelName').value || undefined,
+                    experiment_name: document.getElementById('experimentName').value || undefined,
+                    training_config: {
+                        num_epochs: parseInt(document.getElementById('numEpochs').value),
+                        batch_size: parseInt(document.getElementById('batchSize').value),
+                        learning_rate: parseFloat(document.getElementById('learningRate').value),
+                        base_model_name: document.getElementById('baseModel').value
+                    }
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
 
-        // Form submission handling
-        document.getElementById('trainForm').addEventListener('submit', function(e) {
-            const sourceType = document.getElementById('sourceType').value;
-            const fileContent = document.getElementById('fileContent');
-            const urlInput = document.querySelector('input[name="dataset_source.url"]');
+                // Add source-specific data
+                if (sourceType === 'url') {
+                    const url = document.getElementById('datasetUrl').value;
+                    if (!url) {
+                        throw new Error('Please provide a dataset URL');
+                    }
+                    payload.dataset_source.url = url;
+                } else {
+                    const fileContent = document.getElementById('fileContent').value;
+                    if (!fileContent) {
+                        throw new Error('Please upload a CSV file');
+                    }
+                    payload.dataset_source.file_content = fileContent;
+                }
 
-            // Clear the unused input to avoid sending both
-            if (sourceType === 'url') {
-                fileContent.value = '';
-            } else {
-                urlInput.value = '';
+                console.log('Sending payload:', payload); // Debug log
+
+                const response = await fetch('/model/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Training failed');
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 class="text-green-800 font-medium">Training Successful!</h4>
+                        <p class="text-green-700 mt-1">Model ID: ${result.model_id}</p>
+                        <p class="text-green-600 mt-1">${result.message}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Training error:', error); // Debug log
+                resultDiv.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="text-red-800 font-medium">Training Failed</h4>
+                        <p class="text-red-700 mt-1">${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                trainButton.disabled = false;
+                trainButton.textContent = 'Train Model';
             }
         });
 
@@ -335,6 +466,7 @@
             }
 
             try {
+                console.log(modelId, text);
                 const response = await fetch(`/model/${modelId}/predict?text=${encodeURIComponent(text)}`, {
                     method: 'POST',
                     headers: {

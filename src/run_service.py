@@ -12,10 +12,9 @@ def main():
             host="0.0.0.0",
             port=8000,
         )
-    elif os.getenv("VSCODE_DEBUGGER"):
-        uvicorn.run(app, host="0.0.0.0", port=8000)
     else:
-        uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 
 if __name__ == "__main__":

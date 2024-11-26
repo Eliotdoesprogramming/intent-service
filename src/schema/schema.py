@@ -85,7 +85,7 @@ class TrainingConfig(BaseModel):
 
 
 class TrainingRequest(BaseModel):
-    intents: List[str]
+    intents: Optional[List[str]] = None
     dataset_source: DatasetSource
     model_name: Optional[str] = None
     experiment_name: Optional[str] = None
