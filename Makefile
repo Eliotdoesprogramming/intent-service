@@ -16,7 +16,7 @@ RUFF_LINT_ARGS = --fix
 
 dockerdev:
 	docker build -t $(IMAGE_NAME) .
-	docker run --rm -it -p 8000:8000 $(IMAGE_NAME) 
+	docker run --rm -it -p 8000:8000 -v $(PWD)/mlruns:/app/mlruns $(IMAGE_NAME)
 
 test:
 	uv run pytest $(TEST_PATHS) $(PYTEST_ARGS)
