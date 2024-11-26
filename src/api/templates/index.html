@@ -7,9 +7,115 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.8"></script>
     <script src="https://unpkg.com/json-formatter-js"></script>
+    <style>
+        .glass-card {
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.7),
+                rgba(255, 255, 255, 0.4)
+            );
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 8px 32px 0 rgba(31, 38, 135, 0.15),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: inherit;
+            background: linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.1) 0%,
+                rgba(255, 255, 255, 0.05) 100%
+            );
+            pointer-events: none;
+        }
+        .glass-input {
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.8),
+                rgba(255, 255, 255, 0.5)
+            );
+            backdrop-filter: blur(8px) saturate(160%);
+            -webkit-backdrop-filter: blur(8px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.1);
+        }
+        .glass-button {
+            background: linear-gradient(
+                135deg,
+                rgba(14, 165, 233, 0.9),
+                rgba(14, 165, 233, 0.7)
+            );
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 4px 12px rgba(14, 165, 233, 0.2),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .glass-button:hover {
+            background: linear-gradient(
+                135deg,
+                rgba(14, 165, 233, 1),
+                rgba(14, 165, 233, 0.8)
+            );
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 16px rgba(14, 165, 233, 0.3),
+                inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+        .glass-section {
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.5),
+                rgba(255, 255, 255, 0.3)
+            );
+            backdrop-filter: blur(6px) saturate(160%);
+            -webkit-backdrop-filter: blur(6px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* Add shimmer effect to cards */
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+        .glass-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.15) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: translateX(-100%);
+            animation: shimmer 6s infinite linear;
+            pointer-events: none;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <nav class="bg-indigo-600 text-white p-4">
+<body class="bg-gradient-to-br from-sky-50 via-sky-100 to-white min-h-screen">
+    <nav class="bg-gradient-to-r from-sky-500 to-sky-600 text-white p-4 shadow-lg">
         <div class="max-w-7xl mx-auto">
             <h1 class="text-2xl font-bold">Intent Service Dashboard</h1>
         </div>
@@ -17,34 +123,37 @@
 
     <main class="max-w-7xl mx-auto p-6 space-y-6">
         <!-- Model List Section -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Available Models</h2>
+        <div class="glass-card rounded-xl p-6">
+            <h2 class="text-xl font-semibold mb-4 text-sky-900">Available Models</h2>
             <div class="space-y-4">
                 <button
-                    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                    class="glass-button text-white px-6 py-2 rounded-lg hover:bg-sky-600 flex items-center gap-2"
                     hx-get="/model"
                     hx-target="#modelList"
                     hx-trigger="click"
                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                    </svg>
                     Refresh Models
                 </button>
                 <div id="modelList" class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
-                    <p class="text-gray-600 col-span-full">Click to load models...</p>
+                    <p class="text-sky-600 col-span-full">Click to load models...</p>
                 </div>
             </div>
         </div>
 
         <!-- Model Training Section -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Train New Model</h2>
+        <div class="glass-card rounded-xl p-6">
+            <h2 class="text-xl font-semibold mb-4 text-sky-900">Train New Model</h2>
             <form id="trainForm" class="space-y-4">
                 <!-- Dataset Source Section -->
-                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-medium text-gray-900">Dataset Source</h3>
+                <div class="space-y-4 p-4 bg-white/50 rounded-xl backdrop-blur-sm">
+                    <h3 class="text-lg font-medium text-sky-900">Dataset Source</h3>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Source Type</label>
+                        <label class="block text-sm font-medium text-sky-700">Source Type</label>
                         <select id="sourceType" 
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500"
                                 onchange="toggleSourceInputs()">
                             <option value="url">URL</option>
                             <option value="upload">File Upload</option>
@@ -53,90 +162,87 @@
                     
                     <!-- URL Input -->
                     <div id="urlInput">
-                        <label class="block text-sm font-medium text-gray-700">Dataset URL</label>
+                        <label class="block text-sm font-medium text-sky-700">Dataset URL</label>
                         <input type="url" 
                                id="datasetUrl"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                placeholder="https://example.com/dataset.csv">
                     </div>
 
                     <!-- File Upload Input -->
                     <div id="fileInput" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700">Upload CSV File</label>
+                        <label class="block text-sm font-medium text-sky-700">Upload CSV File</label>
                         <div class="mt-1 flex items-center space-x-2">
                             <input type="file" 
                                    id="csvFile" 
                                    accept=".csv"
-                                   class="block w-full text-sm text-gray-500
+                                   class="block w-full text-sm text-sky-700
                                           file:mr-4 file:py-2 file:px-4
-                                          file:rounded-md file:border-0
+                                          file:rounded-lg file:border-0
                                           file:text-sm file:font-semibold
-                                          file:bg-indigo-50 file:text-indigo-700
-                                          hover:file:bg-indigo-100">
-                            <div id="fileStatus" class="text-sm text-gray-500"></div>
+                                          file:bg-sky-50 file:text-sky-700
+                                          hover:file:bg-sky-100">
                         </div>
-                        <!-- Hidden input for base64 data -->
-                        <input type="hidden" id="fileContent">
                     </div>
                 </div>
 
                 <!-- Model Configuration -->
-                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-medium text-gray-900">Model Configuration</h3>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Model Name (optional)</label>
-                        <input type="text" 
-                               id="modelName"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
-                               placeholder="my-intent-model">
+                <div class="space-y-4 p-4 bg-white/50 rounded-xl backdrop-blur-sm">
+                    <h3 class="text-lg font-medium text-sky-900">Model Configuration</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-sky-700">Model Name</label>
+                            <input type="text" 
+                                   id="modelName"
+                                   class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
+                                   placeholder="my-intent-model">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-sky-700">Experiment Name</label>
+                            <input type="text" 
+                                   id="experimentName"
+                                   class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
+                                   placeholder="my-experiment">
+                        </div>
                     </div>
-
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Experiment Name (optional)</label>
-                        <input type="text" 
-                               id="experimentName"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
-                               placeholder="my-experiment">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Intents (comma-separated)</label>
+                        <label class="block text-sm font-medium text-sky-700">Intents</label>
                         <input type="text" 
                                id="intents"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                               class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                placeholder="greeting,farewell,help_request">
-                        <p class="mt-1 text-sm text-gray-500">Must match the intents in your dataset</p>
+                        <p class="mt-1 text-sm text-sky-600">Must match the intents in your dataset</p>
                     </div>
                 </div>
 
                 <!-- Training Configuration -->
-                <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-medium text-gray-900">Training Configuration</h3>
+                <div class="space-y-4 p-4 bg-white/50 rounded-xl backdrop-blur-sm">
+                    <h3 class="text-lg font-medium text-sky-900">Training Configuration</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Number of Epochs</label>
+                            <label class="block text-sm font-medium text-sky-700">Number of Epochs</label>
                             <input type="number" 
                                    id="numEpochs"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                    value="10" min="1">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Batch Size</label>
+                            <label class="block text-sm font-medium text-sky-700">Batch Size</label>
                             <input type="number" 
                                    id="batchSize"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                    value="32" min="1">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Learning Rate</label>
+                            <label class="block text-sm font-medium text-sky-700">Learning Rate</label>
                             <input type="number" 
                                    id="learningRate"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                                   class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                    value="0.00005" step="0.00001">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Base Model Name</label>
-                            <select id="baseModel" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <label class="block text-sm font-medium text-sky-700">Base Model Name</label>
+                            <select id="baseModel" class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500">
                                 <option value="distilbert-base-uncased">DistilBERT Base Uncased (Default)</option>
                                 <option value="bert-base-uncased">BERT Base Uncased</option>
                                 <option value="roberta-base">RoBERTa Base</option>
@@ -145,13 +251,12 @@
                                 <option value="microsoft/deberta-base">Microsoft DeBERTa Base</option>
                                 <option value="google/electra-base-discriminator">Google ELECTRA Base Discriminator</option>
                             </select>
-                            <p class="mt-1 text-xs text-gray-500">Pre-trained model to use as the base for fine-tuning</p>
                         </div>
                     </div>
                 </div>
 
                 <button type="submit" 
-                        class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        class="glass-button w-full text-white px-6 py-3 rounded-lg text-lg font-medium"
                         id="trainButton">
                     Train Model
                 </button>
@@ -160,25 +265,25 @@
         </div>
 
         <!-- Model Prediction Section -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Make Predictions</h2>
+        <div class="glass-card rounded-xl p-6">
+            <h2 class="text-xl font-semibold mb-4 text-sky-900">Make Predictions</h2>
             <form class="space-y-4" id="predictionForm">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Model ID</label>
+                    <label class="block text-sm font-medium text-sky-700">Model ID</label>
                     <input type="text" 
                            id="modelIdInput"
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                           class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                            placeholder="Enter model ID or name">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Text to Classify</label>
+                    <label class="block text-sm font-medium text-sky-700">Text to Classify</label>
                     <textarea name="text" 
                               rows="3" 
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                              class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                               placeholder="Enter text to classify..."></textarea>
                 </div>
                 <button type="submit" 
-                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        class="glass-button text-white px-6 py-2 rounded-lg">
                     Predict
                 </button>
             </form>
@@ -186,22 +291,22 @@
         </div>
 
         <!-- Model Search Section -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Search Models</h2>
+        <div class="glass-card rounded-xl p-6">
+            <h2 class="text-xl font-semibold mb-4 text-sky-900">Search Models</h2>
             <form hx-post="/model/search" hx-target="#searchResult" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Name Contains</label>
-                    <input type="text" name="name_contains" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Search by name...">
+                    <label class="block text-sm font-medium text-sky-700">Name Contains</label>
+                    <input type="text" name="name_contains" class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" placeholder="Search by name...">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Required Intents (comma-separated)</label>
-                    <input type="text" name="intents" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="intent1,intent2">
+                    <label class="block text-sm font-medium text-sky-700">Required Intents</label>
+                    <input type="text" name="intents" class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" placeholder="intent1,intent2">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Result Limit</label>
-                    <input type="number" name="limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="10">
+                    <label class="block text-sm font-medium text-sky-700">Result Limit</label>
+                    <input type="number" name="limit" class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" value="10">
                 </div>
-                <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                <button type="submit" class="glass-button text-white px-6 py-2 rounded-lg">
                     Search
                 </button>
             </form>
@@ -235,48 +340,56 @@
                 try {
                     const models = JSON.parse(modelList.textContent);
                     modelList.innerHTML = models.map(model => `
-                        <div class="bg-white overflow-hidden shadow rounded-lg border">
+                        <div class="glass-card overflow-hidden rounded-xl border-0">
                             <div class="px-4 py-5 sm:p-6">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="text-lg font-medium text-gray-900">${model.name}</h3>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                        model.run_info.status === 'FINISHED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                    <h3 class="text-lg font-medium text-sky-900">${model.name}</h3>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                        model.run_info.status === 'FINISHED' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
                                     }">
                                         v${model.version}
                                     </span>
                                 </div>
-                                <p class="mt-1 text-sm text-gray-500">${model.description || 'No description'}</p>
+                                <p class="mt-1 text-sm text-sky-600">${model.description || 'No description'}</p>
                                 
                                 <div class="mt-4">
-                                    <h4 class="text-sm font-medium text-gray-700">Intents</h4>
+                                    <h4 class="text-sm font-medium text-sky-700">Intents</h4>
                                     <div class="mt-2 flex flex-wrap gap-2">
-                                        ${model.intents.map(createIntentPill).join('')}
+                                        ${model.intents.map(intent => `
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-sky-100 text-sky-800">
+                                                ${intent}
+                                            </span>
+                                        `).join('')}
                                     </div>
                                 </div>
 
                                 ${Object.keys(model.tags).length > 0 ? `
                                     <div class="mt-4">
-                                        <h4 class="text-sm font-medium text-gray-700">Tags</h4>
+                                        <h4 class="text-sm font-medium text-sky-700">Tags</h4>
                                         <div class="mt-2 flex flex-wrap gap-2">
-                                            ${Object.entries(model.tags).map(([key, value]) => createTagPill(key, value)).join('')}
+                                            ${Object.entries(model.tags).map(([key, value]) => `
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-sky-50 text-sky-700">
+                                                    ${key}:${value}
+                                                </span>
+                                            `).join('')}
                                         </div>
                                     </div>
                                 ` : ''}
 
-                                <div class="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-500">
+                                <div class="mt-4 grid grid-cols-2 gap-4 text-sm text-sky-600">
                                     <div>
-                                        <span class="block font-medium">Created</span>
+                                        <span class="block font-medium text-sky-700">Created</span>
                                         ${formatTimestamp(model.creation_timestamp)}
                                     </div>
                                     <div>
-                                        <span class="block font-medium">Last Updated</span>
+                                        <span class="block font-medium text-sky-700">Last Updated</span>
                                         ${formatTimestamp(model.last_updated_timestamp)}
                                     </div>
                                 </div>
 
-                                <div class="mt-4 text-sm text-gray-500">
-                                    <span class="block font-medium">Run ID</span>
-                                    ${model.run_info.run_id}
+                                <div class="mt-4 text-sm">
+                                    <span class="block font-medium text-sky-700">Run ID</span>
+                                    <span class="text-sky-600">${model.run_info.run_id}</span>
                                 </div>
                             </div>
                         </div>
