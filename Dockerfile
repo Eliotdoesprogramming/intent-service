@@ -20,4 +20,4 @@ RUN uv sync
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uv", "run", "src/run_service.py"]
+CMD ["uv", "run", "intent-service"]
