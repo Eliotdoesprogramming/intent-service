@@ -7,17 +7,20 @@ A Python-based service for processing and handling intents through a REST API.
 This project uses [uv](https://github.com/astral-sh/uv) for dependency management. To get started:
 
 1. Install uv:
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 2. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/intent-service.git
 cd intent-service
 ```
 
 3. Create a virtual environment and install dependencies:
+
 ```bash
 uv venv
 source .venv/bin/activate  # On Unix/macOS
@@ -34,10 +37,10 @@ uv pip install -r requirements.txt
 We use several tools to maintain code quality:
 
 - **Ruff**: For fast Python linting and formatting
-- **Mypy**: For static type checking
 - **Pytest**: For unit testing
 
 Install development dependencies:
+
 ```bash
 uv pip install -r requirements-dev.txt
 ```
@@ -83,17 +86,18 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
-    "intent": "detected_intent",
-    "confidence": 0.95,
-    "entities": [
-        {
-            "type": "entity_type",
-            "value": "entity_value",
-            "confidence": 0.9
-        }
-    ]
+  "intent": "detected_intent",
+  "confidence": 0.95,
+  "entities": [
+    {
+      "type": "entity_type",
+      "value": "entity_value",
+      "confidence": 0.9
+    }
+  ]
 }
 ```
 
@@ -104,32 +108,37 @@ GET /api/v1/health
 ```
 
 Response:
+
 ```json
 {
-    "status": "healthy",
-    "version": "1.0.0"
+  "status": "healthy",
+  "version": "1.0.0"
 }
 ```
 
 ## Development Workflow
 
 1. Create a new branch for your feature/fix:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. Make your changes and ensure all tests pass:
+
    ```bash
    pytest
    ```
 
 3. Run code quality checks:
+
    ```bash
    ruff check .
    mypy .
    ```
 
 4. Commit your changes:
+
    ```bash
    git commit -m "feat: add your feature description"
    ```
@@ -152,11 +161,13 @@ API_KEY=your_api_key
 ## Running the Service
 
 Development mode:
+
 ```bash
 uvicorn app.main:app --reload
 ```
 
 Production mode:
+
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
@@ -181,6 +192,7 @@ python -m src.cli serve --port 9000 --host 127.0.0.1
 ### Model Management
 
 Train a new model:
+
 ```bash
 python -m src.cli train \
     --dataset-path data/training.csv \
@@ -189,6 +201,7 @@ python -m src.cli train \
 ```
 
 Register a trained model:
+
 ```bash
 python -m src.cli register \
     <run_id> \
@@ -198,6 +211,7 @@ python -m src.cli register \
 ```
 
 Search for models:
+
 ```bash
 python -m src.cli search \
     --name-contains "bert" \
@@ -206,11 +220,13 @@ python -m src.cli search \
 ```
 
 Get model information:
+
 ```bash
 python -m src.cli info <model_id>
 ```
 
 Make predictions:
+
 ```bash
 python -m src.cli predict <model_id> "your text here"
 ```
