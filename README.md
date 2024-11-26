@@ -161,6 +161,70 @@ Production mode:
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+## CLI Usage
+
+The service provides a command-line interface for model management and server operations:
+
+### Starting the Server
+
+```bash
+# Development mode (auto-reload enabled)
+python -m src.cli serve
+
+# Production mode
+python -m src.cli serve --environment prod --workers 4
+
+# Custom configuration
+python -m src.cli serve --port 9000 --host 127.0.0.1
+```
+
+### Model Management
+
+Train a new model:
+```bash
+python -m src.cli train \
+    --dataset-path data/training.csv \
+    --experiment-name "my-experiment" \
+    --num-epochs 5
+```
+
+Register a trained model:
+```bash
+python -m src.cli register \
+    <run_id> \
+    "my-model-name" \
+    --description "Description of the model" \
+    --tags '{"version": "1.0.0", "author": "team"}'
+```
+
+Search for models:
+```bash
+python -m src.cli search \
+    --name-contains "bert" \
+    --tags '{"version": "1.0.0"}' \
+    --intents "greeting,farewell"
+```
+
+Get model information:
+```bash
+python -m src.cli info <model_id>
+```
+
+Make predictions:
+```bash
+python -m src.cli predict <model_id> "your text here"
+```
+
+### CLI Options
+
+Each command supports various options. Use the `--help` flag to see detailed documentation:
+
+```bash
+python -m src.cli --help  # Show all commands
+python -m src.cli serve --help  # Show options for serve command
+python -m src.cli train --help  # Show options for train command
+```
+
 ## Contributing
 
 1. Fork the repository
