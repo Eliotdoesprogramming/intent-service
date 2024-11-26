@@ -251,13 +251,13 @@ The service provides a command-line interface for model management and server op
 
 ```bash
 # Development mode (auto-reload enabled)
-python -m src.cli serve
+intent-cli serve
 
 # Production mode
-python -m src.cli serve --environment prod --workers 4
+intent-cli serve --environment prod --workers 4
 
 # Custom configuration
-python -m src.cli serve --port 9000 --host 127.0.0.1
+intent-cli serve --port 9000 --host 127.0.0.1
 ```
 
 ### Model Management
@@ -265,7 +265,7 @@ python -m src.cli serve --port 9000 --host 127.0.0.1
 Train a new model:
 
 ```bash
-python -m src.cli train \
+intent-cli train \
     --dataset-path data/training.csv \
     --experiment-name "my-experiment" \
     --num-epochs 5
@@ -274,7 +274,7 @@ python -m src.cli train \
 Register a trained model:
 
 ```bash
-python -m src.cli register \
+intent-cli register \
     <run_id> \
     "my-model-name" \
     --description "Description of the model" \
@@ -284,7 +284,7 @@ python -m src.cli register \
 Search for models:
 
 ```bash
-python -m src.cli search \
+intent-cli search \
     --name-contains "bert" \
     --tags '{"version": "1.0.0"}' \
     --intents "greeting,farewell"
@@ -293,13 +293,13 @@ python -m src.cli search \
 Get model information:
 
 ```bash
-python -m src.cli info <model_id>
+intent-cli info <model_id>
 ```
 
 Make predictions:
 
 ```bash
-python -m src.cli predict <model_id> "your text here"
+intent-cli predict <model_id> "your text here"
 ```
 
 ### CLI Options
@@ -307,9 +307,9 @@ python -m src.cli predict <model_id> "your text here"
 Each command supports various options. Use the `--help` flag to see detailed documentation:
 
 ```bash
-python -m src.cli --help  # Show all commands
-python -m src.cli serve --help  # Show options for serve command
-python -m src.cli train --help  # Show options for train command
+intent-cli --help  # Show all commands
+intent-cli serve --help  # Show options for serve command
+intent-cli train --help  # Show options for train command
 ```
 
 ## Contributing
