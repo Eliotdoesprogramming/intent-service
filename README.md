@@ -1,6 +1,16 @@
 # Intent Service
 
-A Python-based service for processing and handling intents through a REST API.
+# Intent-Service: Simplifying Fine-Tuning of Encoder Models for Classification
+
+The intent-service is a tool designed to streamline the process of fine-tuning encoder-based models, such as BERT, for classification tasks. Specifically, this project focuses on simplifying the training of models for intent classification, which is a critical task in natural language processing (NLP) applications such as chatbots, virtual assistants, and other conversational AI systems.
+
+## Background
+Encoder models like BERT (Bidirectional Encoder Representations from Transformers) have revolutionized the way we process and understand language. These models are pre-trained on vast amounts of text data and can be fine-tuned to perform a wide range of downstream tasks with minimal effort. One of the most common applications of these models is intent classification—the task of determining the user's intent based on their input text.
+
+Intent classification plays a central role in conversational AI systems, such as Google Assistant, Siri, Alexa, and countless custom chatbot solutions. By understanding the user's intent (e.g., "set an alarm," "get the weather," "play music"), these systems can trigger appropriate actions or provide relevant responses.
+
+However, fine-tuning these models for intent classification can be challenging. It requires a well-organized approach to dataset preparation, hyperparameter tuning, and model optimization. Intent Classifier aims to simplify this process, making it easier for developers to deploy high-performance intent classification models for their applications.
+
 
 ## Installation
 
