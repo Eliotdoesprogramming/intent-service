@@ -51,9 +51,6 @@ uv pip install -r requirements-dev.txt
 # Run linting
 ruff check .
 
-# Run type checking
-mypy .
-
 # Run tests
 pytest
 ```
@@ -70,51 +67,91 @@ pre-commit install
 
 The service provides a REST API for intent processing. Here are the main endpoints:
 
-### Process Intent
+### Model Management
 
-```http
-POST /api/v1/process
-Content-Type: application/json
-
-{
-    "text": "your input text",
-    "context": {
-        "user_id": "optional_user_id",
-        "session_id": "optional_session_id"
-    }
-}
+#### Get Model Information
+```bash
+GET /model/{model_id}
 ```
+Retrieves detailed information about a specific model. The `model_id` can be either a registered model name or MLflow run ID.
 
-Response:
-
+#### Search Models
+```bash
+POST /model/search
+```
+Search for registered models based on various criteria:
 ```json
 {
-  "intent": "detected_intent",
-  "confidence": 0.95,
-  "entities": [
-    {
-      "type": "entity_type",
-      "value": "entity_value",
-      "confidence": 0.9
-    }
-  ]
+  "tags": {"version": "1.0.0"},
+  "intents": ["greeting", "farewell"],
+  "name_contains": "bert",
+  "limit": 10
 }
 ```
 
-### Health Check
-
-```http
-GET /api/v1/health
+#### Register Model
+```bash
+POST /model/register
 ```
-
-Response:
-
+Register an existing MLflow run as a named model:
 ```json
 {
-  "status": "healthy",
-  "version": "1.0.0"
+  "mlflow_run_id": "run_123",
+  "name": "intent-classifier-v1",
+  "description": "Intent classifier using DistilBERT",
+  "tags": {
+    "version": "1.0.0",
+    "author": "team"
+  }
 }
 ```
+
+### Training
+
+#### Train New Model
+```bash
+POST /model/train
+```
+Train a new intent classification model:
+```json
+{
+  "intents": ["greeting", "farewell", "help"],
+  "dataset_source": {
+    "source_type": "url",
+    "url": "https://example.com/dataset.csv"
+  },
+  "model_name": "distilbert-base-uncased",
+  "experiment_name": "intent-training",
+  "training_config": {
+    "num_epochs": 5,
+    "batch_size": 32,
+    "learning_rate": 5e-5
+  }
+}
+```
+
+### Prediction
+
+#### Generate Predictions
+```bash
+POST /model/{model_id}/predict?text=Hello%20there
+```
+Generate intent predictions for input text. Returns confidence scores for each intent:
+```json
+{
+  "greeting": 0.85,
+  "farewell": 0.10,
+  "help": 0.05
+}
+```
+
+### API Documentation
+
+Full API documentation is available at `/docs` when running the service. This provides an interactive Swagger UI where you can:
+- View detailed endpoint specifications
+- Try out API calls directly
+- See request/response schemas
+- Access example payloads
 
 ## Development Workflow
 
