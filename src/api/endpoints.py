@@ -34,6 +34,80 @@ async def redirect_to_docs():
     return RedirectResponse(url="/docs")
 
 
+@app.get("/model")
+def get_models(request: ModelSearchRequest = None):
+    """
+    List all registered models and their details from MLflow.
+
+    Parameters:
+        request (ModelSearchRequest, optional): Search criteria for filtering models
+
+    Returns:
+        list: List of model information dictionaries containing:
+            - name: Model name
+            - version: Latest version number
+            - description: Model description
+            - creation_timestamp: When model was created
+            - last_updated_timestamp: When model was last modified
+            - intents: List of supported intent labels
+            - tags: Additional metadata tags
+            - run_info: Information about the training run
+
+    Raises:
+        HTTPException(500): If there are errors accessing MLflow
+    """
+    try:
+        client = mlflow.tracking.MlflowClient()
+        models = []
+
+        # Get all registered models
+        registered_models = client.search_registered_models()
+
+        for model in registered_models:
+            model_info = {
+                "name": model.name,
+                "description": model.description,
+                "creation_timestamp": model.creation_timestamp,
+                "last_updated_timestamp": model.last_updated_timestamp,
+            }
+
+            # Get latest version
+            latest_versions = client.get_latest_versions(model.name, stages=["None"])
+            if latest_versions:
+                latest = latest_versions[0]
+                model_info["version"] = latest.version
+
+                # Get run info if available
+                if latest.run_id:
+                    run = client.get_run(latest.run_id)
+                    model_info["run_info"] = {
+                        "run_id": run.info.run_id,
+                        "status": run.info.status,
+                        "metrics": run.data.metrics,
+                        "params": run.data.params,
+                    }
+
+            # Get intent labels from tags
+            intent_tags = {
+                k: v for k, v in model.tags.items() if k.startswith("intent_")
+            }
+            model_info["intents"] = [
+                k.replace("intent_", "") for k in intent_tags.keys()
+            ]
+
+            # Add remaining tags
+            model_info["tags"] = {
+                k: v for k, v in model.tags.items() if not k.startswith("intent_")
+            }
+
+            models.append(model_info)
+
+        return models
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing models: {str(e)}")
+
+
 # Endpoint to list available models
 @app.get("/model/{model_id}")
 def get_model_info(model_id: str):
@@ -72,15 +146,13 @@ def get_model_info(model_id: str):
             latest_version = client.get_latest_versions(model_id, stages=["None"])[0]
 
             # Basic model info
-            model_info.update(
-                {
-                    "name": registered_model.name,
-                    "version": latest_version.version,
-                    "description": registered_model.description,
-                    "creation_timestamp": registered_model.creation_timestamp,
-                    "last_updated_timestamp": registered_model.last_updated_timestamp,
-                }
-            )
+            model_info.update({
+                "name": registered_model.name,
+                "version": latest_version.version,
+                "description": registered_model.description,
+                "creation_timestamp": registered_model.creation_timestamp,
+                "last_updated_timestamp": registered_model.last_updated_timestamp,
+            })
 
             # Get all tags
             tags = registered_model.tags if registered_model.tags else {}
@@ -113,17 +185,15 @@ def get_model_info(model_id: str):
             # Try to get as run ID instead
             try:
                 run = client.get_run(model_id)
-                model_info.update(
-                    {
-                        "run_id": run.info.run_id,
-                        "status": run.info.status,
-                        "start_time": run.info.start_time,
-                        "end_time": run.info.end_time,
-                        "metrics": run.data.metrics,
-                        "params": run.data.params,
-                        "tags": run.data.tags,
-                    }
-                )
+                model_info.update({
+                    "run_id": run.info.run_id,
+                    "status": run.info.status,
+                    "start_time": run.info.start_time,
+                    "end_time": run.info.end_time,
+                    "metrics": run.data.metrics,
+                    "params": run.data.params,
+                    "tags": run.data.tags,
+                })
 
                 # Load model to get intents
                 model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")

@@ -29,8 +29,8 @@ lint:
 	uv run ruff format --check $(PYTHON_PATHS)
 
 lint-fix:
-	uv run ruff check $(PYTHON_PATHS) $(RUFF_LINT_ARGS)
-	uv run ruff format $(PYTHON_PATHS)
+	uv run ruff format src
+	uv run ruff check src --fix
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

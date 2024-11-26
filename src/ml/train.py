@@ -50,18 +50,16 @@ def train_intent_classifier(
     # Start MLflow run
     with mlflow.start_run():
         # Log parameters
-        mlflow.log_params(
-            {
-                "model_name": training_config.base_model_name,
-                "learning_rate": training_config.learning_rate,
-                "weight_decay": training_config.weight_decay,
-                "num_epochs": training_config.num_epochs,
-                "batch_size": training_config.batch_size,
-                "max_length": training_config.max_length,
-                "early_stopping_patience": training_config.early_stopping_patience,
-                "num_labels": len(intents),
-            }
-        )
+        mlflow.log_params({
+            "model_name": training_config.base_model_name,
+            "learning_rate": training_config.learning_rate,
+            "weight_decay": training_config.weight_decay,
+            "num_epochs": training_config.num_epochs,
+            "batch_size": training_config.batch_size,
+            "max_length": training_config.max_length,
+            "early_stopping_patience": training_config.early_stopping_patience,
+            "num_labels": len(intents),
+        })
 
         # Training loop
         best_loss = float("inf")
@@ -94,9 +92,9 @@ def train_intent_classifier(
                 # Forward pass
                 outputs = model(
                     **inputs,
-                    labels=torch.tensor(
-                        [intents.index(intent) for intent in intent_labels]
-                    ),
+                    labels=torch.tensor([
+                        intents.index(intent) for intent in intent_labels
+                    ]),
                 )
                 loss = outputs.loss
                 epoch_loss += loss.item()
@@ -159,12 +157,10 @@ def package_model(model, intents, tokenizer):
     from mlflow.types.schema import ColSpec, Schema
 
     input_schema = Schema([ColSpec("string", "text")])
-    output_schema = Schema(
-        [
-            ColSpec("double", "scores"),  # Probability scores for each intent
-            ColSpec("string", "predicted_intent"),  # Predicted intent label
-        ]
-    )
+    output_schema = Schema([
+        ColSpec("double", "scores"),  # Probability scores for each intent
+        ColSpec("string", "predicted_intent"),  # Predicted intent label
+    ])
     signature = mlflow.models.signature.ModelSignature(
         inputs=input_schema, outputs=output_schema
     )

@@ -1,33 +1,42 @@
 import json
-from pathlib import Path
-from typing import Dict, List, Optional
 import os
+from pathlib import Path
+from typing import Optional
+
 import polars as pl
 import typer
 from rich import print
 from rich.console import Console
 from rich.table import Table
 
-from schema import RegisterModelRequest, TrainingConfig, TrainingRequest
+from schema import RegisterModelRequest, TrainingConfig
 
 app = typer.Typer(help="CLI for intent service model management")
 console = Console()
 
+
 def get_mlflow():
     """Lazy load MLflow only when needed"""
     import mlflow
+
     return mlflow
+
 
 def get_train_utils():
     """Lazy load training utilities only when needed"""
     from ml.train import package_model, train_intent_classifier
+
     return package_model, train_intent_classifier
+
 
 def get_api():
     """Lazy load API server utilities only when needed"""
-    from api import app
     import uvicorn
+
+    from api import app
+
     return app, uvicorn
+
 
 @app.command()
 def register(
@@ -41,7 +50,7 @@ def register(
         mlflow = get_mlflow()  # Lazy load mlflow
         # Parse tags if provided
         tag_dict = json.loads(tags) if tags else {}
-        
+
         # Create registration request
         request = RegisterModelRequest(
             mlflow_run_id=run_id,
@@ -49,14 +58,18 @@ def register(
             description=description,
             tags=tag_dict,
         )
-        
+
         # Load the model to verify it exists
         try:
-            loaded_model = mlflow.pyfunc.load_model(f"runs:/{request.mlflow_run_id}/intent_model")
+            loaded_model = mlflow.pyfunc.load_model(
+                f"runs:/{request.mlflow_run_id}/intent_model"
+            )
             intents = loaded_model._model_impl.python_model.intent_labels
             del loaded_model
-        except mlflow.exceptions.MlflowException as e:
-            print(f"[red]Error: No model found with run ID: {request.mlflow_run_id}[/red]")
+        except mlflow.exceptions.MlflowException:
+            print(
+                f"[red]Error: No model found with run ID: {request.mlflow_run_id}[/red]"
+            )
             raise typer.Exit(1)
 
         # Register the model
@@ -82,17 +95,22 @@ def register(
                 name=registered_model.name, key=key, value=str(value)
             )
 
-        print(f"[green]Successfully registered model {name} (version {registered_model.version})[/green]")
+        print(
+            f"[green]Successfully registered model {name} (version {registered_model.version})[/green]"
+        )
 
     except Exception as e:
         print(f"[red]Error registering model: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
 @app.command()
 def search(
     name_contains: Optional[str] = typer.Option(None, help="Filter models by name"),
     tags: Optional[str] = typer.Option(None, help="JSON string of tags to filter by"),
-    intents: Optional[str] = typer.Option(None, help="Comma-separated list of required intents"),
+    intents: Optional[str] = typer.Option(
+        None, help="Comma-separated list of required intents"
+    ),
     limit: Optional[int] = typer.Option(100, help="Maximum number of results"),
 ):
     """Search for registered models."""
@@ -184,6 +202,7 @@ def search(
         print(f"[red]Error searching models: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
 @app.command()
 def train(
     dataset_path: Path = typer.Argument(..., help="Path to the training dataset CSV"),
@@ -237,6 +256,7 @@ def train(
         print(f"[red]Error training model: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
 @app.command()
 def info(model_id: str = typer.Argument(..., help="Model ID (name or run ID)")):
     """Get information about a model."""
@@ -251,15 +271,13 @@ def info(model_id: str = typer.Argument(..., help="Model ID (name or run ID)")):
             latest_version = client.get_latest_versions(model_id, stages=["None"])[0]
 
             # Basic model info
-            model_info.update(
-                {
-                    "name": registered_model.name,
-                    "version": latest_version.version,
-                    "description": registered_model.description,
-                    "creation_timestamp": registered_model.creation_timestamp,
-                    "last_updated_timestamp": registered_model.last_updated_timestamp,
-                }
-            )
+            model_info.update({
+                "name": registered_model.name,
+                "version": latest_version.version,
+                "description": registered_model.description,
+                "creation_timestamp": registered_model.creation_timestamp,
+                "last_updated_timestamp": registered_model.last_updated_timestamp,
+            })
 
             # Get all tags
             tags = registered_model.tags if registered_model.tags else {}
@@ -292,17 +310,15 @@ def info(model_id: str = typer.Argument(..., help="Model ID (name or run ID)")):
             # Try to get as run ID instead
             try:
                 run = client.get_run(model_id)
-                model_info.update(
-                    {
-                        "run_id": run.info.run_id,
-                        "status": run.info.status,
-                        "start_time": run.info.start_time,
-                        "end_time": run.info.end_time,
-                        "metrics": run.data.metrics,
-                        "params": run.data.params,
-                        "tags": run.data.tags,
-                    }
-                )
+                model_info.update({
+                    "run_id": run.info.run_id,
+                    "status": run.info.status,
+                    "start_time": run.info.start_time,
+                    "end_time": run.info.end_time,
+                    "metrics": run.data.metrics,
+                    "params": run.data.params,
+                    "tags": run.data.tags,
+                })
 
                 # Load model to get intents
                 model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")
@@ -314,7 +330,7 @@ def info(model_id: str = typer.Argument(..., help="Model ID (name or run ID)")):
 
         # Create a table to display model info
         table = Table(title=f"Model Information: {model_id}")
-        
+
         for key, value in model_info.items():
             if key != "run_info":
                 table.add_row(key, str(value))
@@ -331,6 +347,7 @@ def info(model_id: str = typer.Argument(..., help="Model ID (name or run ID)")):
         print(f"[red]Error getting model info: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
 @app.command()
 def predict(
     model_id: str = typer.Argument(..., help="Model ID (name or run ID)"),
@@ -345,13 +362,16 @@ def predict(
         except mlflow.exceptions.MlflowException:
             # If not found as registered model, try loading as a run
             try:
-                loaded_model = mlflow.pyfunc.load_model(f"runs:/{model_id}/intent_model")
+                loaded_model = mlflow.pyfunc.load_model(
+                    f"runs:/{model_id}/intent_model"
+                )
             except mlflow.exceptions.MlflowException:
                 print(f"[red]Error: No model found with ID {model_id}[/red]")
                 raise typer.Exit(1)
 
         # Create a pandas DataFrame with the input text
         import pandas as pd
+
         test_data = pd.DataFrame({"text": [text]})
 
         # Get prediction
@@ -372,6 +392,7 @@ def predict(
         print(f"[red]Error making prediction: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", help="Host to bind the server to"),
@@ -383,7 +404,7 @@ def serve(
     """Start the intent classification API server."""
     try:
         app, uvicorn = get_api()
-        
+
         print(f"[yellow]Starting API server on {host}:{port}[/yellow]")
 
         if environment == "prod":
@@ -399,17 +420,62 @@ def serve(
             uvicorn.run(app, host=host, port=port)
         else:
             # Development mode: Auto-reload enabled
-            uvicorn.run(
-                "api:app",
-                host=host,
-                port=port,
-                reload=True,
-                workers=workers
-            )
+            uvicorn.run("api:app", host=host, port=port, reload=True, workers=workers)
 
     except Exception as e:
         print(f"[red]Error starting server: {str(e)}[/red]")
         raise typer.Exit(1)
 
+
+@app.command()
+def list():
+    """List all registered models."""
+    try:
+        mlflow = get_mlflow()  # Lazy load mlflow
+        client = mlflow.tracking.MlflowClient()
+
+        # Get all registered models
+        registered_models = client.search_registered_models()
+
+        if not registered_models:
+            print("[yellow]No registered models found[/yellow]")
+            return
+
+        # Create a table to display results
+        table = Table(title="Registered Models")
+        table.add_column("Name", style="cyan")
+        table.add_column("Version", style="magenta")
+        table.add_column("Description", style="green")
+        table.add_column("Intents", style="yellow")
+        table.add_column("Last Updated", style="blue")
+
+        for rm in registered_models:
+            # Get latest version
+            latest_versions = client.get_latest_versions(rm.name, stages=["None"])
+            version = latest_versions[0].version if latest_versions else "N/A"
+
+            # Get intents from tags
+            tags = rm.tags if rm.tags else {}
+            intents = [
+                tag.replace("intent_", "")
+                for tag in tags.keys()
+                if tag.startswith("intent_")
+            ]
+
+            table.add_row(
+                rm.name,
+                str(version),
+                rm.description or "",
+                ", ".join(intents),
+                str(rm.last_updated_timestamp),
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        print(f"[red]Error listing models: {str(e)}[/red]")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
-    app() 
+    app()

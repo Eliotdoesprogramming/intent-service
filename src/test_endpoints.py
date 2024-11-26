@@ -358,3 +358,50 @@ def test_search_models(client, trained_model):
     search_request = {"tags": None, "intents": None, "name_contains": None}
     response = client.post("/model/search", json=search_request)
     assert response.status_code == 200
+
+
+def test_get_models(client, trained_model):
+    """Test the get_models endpoint for listing registered models"""
+
+    # First register a model to ensure there's something to list
+    run_id = trained_model["run_id"]
+    model_request = {
+        "mlflow_run_id": run_id,
+        "name": "test_list_model",
+        "description": "Test model for listing endpoint",
+        "tags": {"environment": "testing", "version": "1.0"},
+    }
+
+    # Register the model
+    register_response = client.post("/model/register", json=model_request)
+    assert register_response.status_code == 200
+
+    # Test getting all models
+    response = client.get("/model")
+    assert response.status_code == 200
+    models = response.json()
+
+    # Verify response structure
+    assert isinstance(models, list)
+    assert len(models) >= 1  # Should have at least our registered model
+
+    # Find our test model in the results
+    test_model = next((m for m in models if m["name"] == "test_list_model"), None)
+    assert test_model is not None
+
+    # Verify model information structure
+    assert "name" in test_model
+    assert "description" in test_model
+    assert "version" in test_model
+    assert "creation_timestamp" in test_model
+    assert "last_updated_timestamp" in test_model
+    assert "intents" in test_model
+    assert "tags" in test_model
+    assert isinstance(test_model["intents"], list)
+    assert isinstance(test_model["tags"], dict)
+
+    # Verify our test model's specific values
+    assert test_model["name"] == "test_list_model"
+    assert test_model["description"] == "Test model for listing endpoint"
+    assert test_model["tags"]["environment"] == "testing"
+    assert test_model["tags"]["version"] == "1.0"

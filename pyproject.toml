@@ -75,6 +75,7 @@ ignore = []
 fixable = ["A", "B", "C", "D", "E", "F", "I"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+preview = true
 
 [tool.ruff.lint.per-file-ignores]
 "src/api/endpoints.py" = ["E501"]
@@ -89,3 +90,14 @@ known-first-party = ["api", "ml", "schema"]
 
 [tool.uv]
 package = true
+
+[tool.ruff.format]
+# Enable line wrap fixing
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+preview = true
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120
