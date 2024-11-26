@@ -1,15 +1,15 @@
 import base64
 import io
+from pathlib import Path
 
 import mlflow
 import pandas as pd
 import polars as pl
 import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+from fastapi.templating import Jinja2Templates
 
 from ml.train import package_model, train_intent_classifier
 from schema import (
@@ -24,12 +24,18 @@ app = FastAPI()
 
 # Set up templates and static files
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).parent / "static")),
+    name="static",
+)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Serve the main UI page."""
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/model")
 def get_models(request: ModelSearchRequest = None):
@@ -416,7 +422,7 @@ async def train_model(request: TrainingRequest) -> dict:
     try:
         if request.experiment_name:
             mlflow.set_experiment(request.experiment_name)
-            
+
         # Load dataset based on source type
         if request.dataset_source.source_type == "url":
             if not request.dataset_source.url:
@@ -480,9 +486,7 @@ async def train_model(request: TrainingRequest) -> dict:
         run_id = package_model(model, intents, tokenizer)
 
         return TrainingResponse(
-            model_id=run_id,
-            status="success",
-            message="Model trained successfully"
+            model_id=run_id, status="success", message="Model trained successfully"
         )
 
     except Exception as e:
