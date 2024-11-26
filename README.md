@@ -187,13 +187,47 @@ Full API documentation is available at `/docs` when running the service. This pr
 
 ## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file in the root directory based on the provided `.env.example`. Here are the available configuration options:
 
+### Application Settings
 ```env
 DEBUG=True
 LOG_LEVEL=INFO
-API_KEY=your_api_key
+API_KEY=your_api_key_here
+ENVIRONMENT=dev  # Options: dev, prod
+VSCODE_DEBUGGER=False
 ```
+
+### Server Settings
+```env
+HOST=0.0.0.0
+PORT=8000
+```
+
+### MLflow Settings
+```env
+MLFLOW_TRACKING_URI=http://localhost:5000
+MLFLOW_TRACKING_USERNAME=mlflow
+MLFLOW_TRACKING_PASSWORD=mlflow123
+MLFLOW_S3_ENDPOINT_URL=http://localhost:9000  # For MinIO/S3 artifact storage
+MLFLOW_ARTIFACT_ROOT=s3://mlflow/artifacts
+AWS_ACCESS_KEY_ID=minioadmin          # For MinIO/S3 access
+AWS_SECRET_ACCESS_KEY=minioadmin123   # For MinIO/S3 access
+MLFLOW_EXPERIMENT_NAME=intent-service  # Default experiment name
+```
+
+### Model Settings
+```env
+DEFAULT_MODEL_NAME=distilbert-base-uncased
+MAX_SEQUENCE_LENGTH=128
+BATCH_SIZE=32
+```
+
+To get started:
+```bash
+cp .env.example .env
+```
+Then edit the `.env` file with your specific configuration values.
 
 ## Running the Service
 
