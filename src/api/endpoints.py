@@ -5,8 +5,11 @@ import mlflow
 import pandas as pd
 import polars as pl
 import requests
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from ml.train import package_model, train_intent_classifier
 from schema import (
@@ -19,20 +22,14 @@ from schema import (
 
 app = FastAPI()
 
+# Set up templates and static files
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-@app.get("/")
-async def redirect_to_docs():
-    """
-    Redirect to API documentation.
-
-    Automatically redirects all root path requests to the Swagger UI documentation page,
-    providing a user-friendly interface to explore and test the API.
-
-    Returns:
-        RedirectResponse: A 302 redirect to the /docs endpoint
-    """
-    return RedirectResponse(url="/docs")
-
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Serve the main UI page."""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/model")
 def get_models(request: ModelSearchRequest = None):

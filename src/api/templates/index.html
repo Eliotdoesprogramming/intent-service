@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intent Service Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    <script src="https://unpkg.com/json-formatter-js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-indigo-600 text-white p-4">
+        <div class="max-w-7xl mx-auto">
+            <h1 class="text-2xl font-bold">Intent Service Dashboard</h1>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+        <!-- Model List Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Available Models</h2>
+            <div class="space-y-4">
+                <button
+                    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                    hx-get="/model"
+                    hx-target="#modelList"
+                    hx-trigger="click"
+                >
+                    Refresh Models
+                </button>
+                <div id="modelList" class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <p class="text-gray-600 col-span-full">Click to load models...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Training Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Train New Model</h2>
+            <form hx-post="/model/train" 
+                  hx-target="#trainingResult" 
+                  class="space-y-4"
+                  id="trainForm">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Dataset Source</label>
+                    <select name="dataset_source.source_type" 
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                            id="sourceType"
+                            onchange="toggleSourceInputs()">
+                        <option value="url">URL</option>
+                        <option value="upload">File Upload</option>
+                    </select>
+                </div>
+                
+                <!-- URL Input -->
+                <div id="urlInput">
+                    <label class="block text-sm font-medium text-gray-700">Dataset URL</label>
+                    <input type="url" 
+                           name="dataset_source.url" 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                           placeholder="https://example.com/dataset.csv">
+                </div>
+
+                <!-- File Upload Input -->
+                <div id="fileInput" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">Upload CSV File</label>
+                    <div class="mt-1 flex items-center space-x-2">
+                        <input type="file" 
+                               id="csvFile" 
+                               accept=".csv"
+                               class="block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-md file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-indigo-50 file:text-indigo-700
+                                      hover:file:bg-indigo-100">
+                        <div id="fileStatus" class="text-sm text-gray-500"></div>
+                    </div>
+                    <!-- Hidden input for base64 data -->
+                    <input type="hidden" name="dataset_source.file_content" id="fileContent">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Intents (comma-separated)</label>
+                    <input type="text" 
+                           name="intents" 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                           placeholder="intent1,intent2,intent3">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Experiment Name (optional)</label>
+                    <input type="text" 
+                           name="experiment_name" 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+
+                <button type="submit" 
+                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        id="trainButton">
+                    Train Model
+                </button>
+            </form>
+            <div id="trainingResult" class="mt-4"></div>
+        </div>
+
+        <!-- Model Prediction Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Make Predictions</h2>
+            <form class="space-y-4" id="predictionForm">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Model ID</label>
+                    <input type="text" 
+                           id="modelIdInput"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                           placeholder="Enter model ID or name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Text to Classify</label>
+                    <textarea name="text" 
+                              rows="3" 
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+                              placeholder="Enter text to classify..."></textarea>
+                </div>
+                <button type="submit" 
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Predict
+                </button>
+            </form>
+            <div id="predictionResult" class="mt-4"></div>
+        </div>
+
+        <!-- Model Search Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Search Models</h2>
+            <form hx-post="/model/search" hx-target="#searchResult" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Name Contains</label>
+                    <input type="text" name="name_contains" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Search by name...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Required Intents (comma-separated)</label>
+                    <input type="text" name="intents" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="intent1,intent2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Result Limit</label>
+                    <input type="number" name="limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="10">
+                </div>
+                <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Search
+                </button>
+            </form>
+            <div id="searchResult" class="mt-4"></div>
+        </div>
+    </main>
+
+    <script>
+        // Helper function to format timestamps
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        }
+
+        // Helper function to create tag pills
+        function createTagPill(key, value) {
+            return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                ${key}:${value}
+            </span>`;
+        }
+
+        // Helper function to create intent pills
+        function createIntentPill(intent) {
+            return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                ${intent}
+            </span>`;
+        }
+
+        htmx.on('htmx:afterSettle', function(evt) {
+            const modelList = evt.target;
+            if (modelList.id === 'modelList') {
+                try {
+                    const models = JSON.parse(modelList.textContent);
+                    modelList.innerHTML = models.map(model => `
+                        <div class="bg-white overflow-hidden shadow rounded-lg border">
+                            <div class="px-4 py-5 sm:p-6">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-medium text-gray-900">${model.name}</h3>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        model.run_info.status === 'FINISHED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                    }">
+                                        v${model.version}
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-sm text-gray-500">${model.description || 'No description'}</p>
+                                
+                                <div class="mt-4">
+                                    <h4 class="text-sm font-medium text-gray-700">Intents</h4>
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        ${model.intents.map(createIntentPill).join('')}
+                                    </div>
+                                </div>
+
+                                ${Object.keys(model.tags).length > 0 ? `
+                                    <div class="mt-4">
+                                        <h4 class="text-sm font-medium text-gray-700">Tags</h4>
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            ${Object.entries(model.tags).map(([key, value]) => createTagPill(key, value)).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                <div class="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-500">
+                                    <div>
+                                        <span class="block font-medium">Created</span>
+                                        ${formatTimestamp(model.creation_timestamp)}
+                                    </div>
+                                    <div>
+                                        <span class="block font-medium">Last Updated</span>
+                                        ${formatTimestamp(model.last_updated_timestamp)}
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 text-sm text-gray-500">
+                                    <span class="block font-medium">Run ID</span>
+                                    ${model.run_info.run_id}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    console.error('Failed to parse models:', e);
+                }
+            }
+        });
+
+        // Keep the existing JSON formatter for other responses
+        htmx.on('htmx:afterSettle', function(evt) {
+            const jsonElements = evt.target.querySelectorAll('[data-json]');
+            jsonElements.forEach(element => {
+                try {
+                    const json = JSON.parse(element.textContent);
+                    const formatter = new JSONFormatter(json);
+                    element.innerHTML = '';
+                    element.appendChild(formatter.render());
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                }
+            });
+        });
+
+        // File upload handling
+        function toggleSourceInputs() {
+            const sourceType = document.getElementById('sourceType').value;
+            const urlInput = document.getElementById('urlInput');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (sourceType === 'url') {
+                urlInput.classList.remove('hidden');
+                fileInput.classList.add('hidden');
+            } else {
+                urlInput.classList.add('hidden');
+                fileInput.classList.remove('hidden');
+            }
+        }
+
+        // Handle file selection and conversion to base64
+        document.getElementById('csvFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            const fileStatus = document.getElementById('fileStatus');
+            const fileContent = document.getElementById('fileContent');
+            const trainButton = document.getElementById('trainButton');
+            
+            if (file) {
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    fileStatus.textContent = 'File too large (max 10MB)';
+                    fileStatus.classList.add('text-red-500');
+                    trainButton.disabled = true;
+                    return;
+                }
+
+                fileStatus.textContent = 'Reading file...';
+                fileStatus.classList.remove('text-red-500');
+                trainButton.disabled = true;
+
+                try {
+                    const base64Content = await convertFileToBase64(file);
+                    fileContent.value = base64Content;
+                    fileStatus.textContent = 'File ready';
+                    trainButton.disabled = false;
+                } catch (error) {
+                    fileStatus.textContent = 'Error reading file';
+                    fileStatus.classList.add('text-red-500');
+                    trainButton.disabled = true;
+                }
+            }
+        });
+
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // Extract the base64 content without the data URL prefix
+                    const base64Content = reader.result.split(',')[1];
+                    resolve(base64Content);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Form submission handling
+        document.getElementById('trainForm').addEventListener('submit', function(e) {
+            const sourceType = document.getElementById('sourceType').value;
+            const fileContent = document.getElementById('fileContent');
+            const urlInput = document.querySelector('input[name="dataset_source.url"]');
+
+            // Clear the unused input to avoid sending both
+            if (sourceType === 'url') {
+                fileContent.value = '';
+            } else {
+                urlInput.value = '';
+            }
+        });
+
+        // Handle prediction form submission
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const modelId = document.getElementById('modelIdInput').value;
+            const text = this.querySelector('textarea[name="text"]').value;
+            
+            if (!modelId || !text) {
+                document.getElementById('predictionResult').innerHTML = `
+                    <div class="text-red-600">Please provide both model ID and text.</div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch(`/model/${modelId}/predict?text=${encodeURIComponent(text)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                // Format the prediction results
+                const resultHtml = `
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-2">Prediction Results</h3>
+                        <div class="space-y-2">
+                            ${Object.entries(result)
+                                .sort(([,a], [,b]) => b - a) // Sort by confidence score descending
+                                .map(([intent, confidence]) => `
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700">${intent}</span>
+                                        <div class="flex items-center">
+                                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${confidence * 100}%"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600">${(confidence * 100).toFixed(1)}%</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('predictionResult').innerHTML = resultHtml;
+            } catch (error) {
+                document.getElementById('predictionResult').innerHTML = `
+                    <div class="text-red-600">Error: ${error.message}</div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 
