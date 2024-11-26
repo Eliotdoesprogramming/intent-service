@@ -1,0 +1,51 @@
+intent,text
+greeting,Hi there!
+greeting,"Hello, how are you?"
+greeting,Good morning
+greeting,"Hey, what's up?"
+greeting,"Hi, nice to meet you"
+greeting,Greetings!
+greeting,Good afternoon
+greeting,Hey there
+greeting,Hello everyone
+greeting,"Hi, how's it going?"
+farewell,Goodbye!
+farewell,See you later
+farewell,Bye bye
+farewell,Have a great day
+farewell,Take care
+farewell,Until next time
+farewell,Catch you later
+farewell,Good night
+farewell,Farewell
+farewell,See you soon
+help,Can you help me?
+help,I need assistance
+help,How does this work?
+help,Could you explain this?
+help,I'm stuck
+help,What should I do?
+help,Can you guide me?
+help,I don't understand
+help,Please help
+help,Show me how
+weather,What's the weather like?
+weather,Is it going to rain today?
+weather,Temperature forecast
+weather,Will it be sunny?
+weather,How cold is it outside?
+weather,Weather forecast please
+weather,Is it warm today?
+weather,Any storms coming?
+weather,What's the humidity like?
+weather,Will I need an umbrella?
+music,Play some music
+music,What song is this?
+music,Change the song
+music,Turn up the volume
+music,Next track please
+music,Can you play my playlist?
+music,I want to listen to jazz
+music,Show my favorite songs
+music,Pause the music
+music,Put on some rock music

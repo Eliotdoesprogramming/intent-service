@@ -1,8 +1,7 @@
-import time
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
-
+import os
 import polars as pl
 import typer
 from rich import print
@@ -112,19 +111,19 @@ def search(
         for rm in registered_models:
             match = True
             model_info = {
-                "name": rm.name,
-                "description": rm.description,
-                "creation_timestamp": rm.creation_timestamp,
-                "last_updated_timestamp": rm.last_updated_timestamp,
+                "name": str(rm.name),
+                "description": str(rm.description or ""),
+                "creation_timestamp": str(rm.creation_timestamp),
+                "last_updated_timestamp": str(rm.last_updated_timestamp),
             }
 
             # Get latest version
             latest_versions = client.get_latest_versions(rm.name, stages=["None"])
             if latest_versions:
-                model_info["version"] = latest_versions[0].version
+                model_info["version"] = str(latest_versions[0].version)
 
             # Get all tags
-            tags = rm.tags if rm.tags else {}
+            tags = dict(rm.tags) if rm.tags else {}
 
             # Extract intents from tags
             model_intents = [
@@ -136,17 +135,17 @@ def search(
 
             # Filter non-intent tags
             model_info["tags"] = {
-                k: v for k, v in tags.items() if not k.startswith("intent_")
+                k: str(v) for k, v in tags.items() if not k.startswith("intent_")
             }
 
             # Apply name filter if specified
-            if name_contains and name_contains.lower() not in rm.name.lower():
+            if name_contains and name_contains.lower() not in str(rm.name).lower():
                 match = False
 
             # Apply tag filters if specified
             if tag_dict:
                 for key, value in tag_dict.items():
-                    if key not in tags or tags[key] != value:
+                    if key not in tags or str(tags[key]) != str(value):
                         match = False
                         break
 
@@ -173,7 +172,7 @@ def search(
         for result in results:
             table.add_row(
                 result["name"],
-                str(result.get("version", "N/A")),
+                result.get("version", "N/A"),
                 result.get("description", ""),
                 ", ".join(result["intents"]),
                 json.dumps(result["tags"], indent=2),
