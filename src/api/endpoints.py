@@ -413,43 +413,10 @@ def delete_model(model_id: int):
 
 @app.post("/model/train", response_model=TrainingResponse)
 async def train_model(request: TrainingRequest) -> dict:
-    """
-    Train a new intent classification model.
-
-    Args:
-        request (TrainingRequest): Training configuration including:
-            - dataset_source: Source configuration for training data
-                - source_type: Either 'url' or 'upload'
-                - url: URL to download dataset (for 'url' type)
-                - file_content: Base64 encoded CSV content (for 'upload' type)
-            - intents: List of valid intents for classification
-            - experiment_name: Optional MLflow experiment name
-            - model_name: Optional base model name to use
-            - training_config: Optional custom training parameters
-
-    Returns:
-        TrainingResponse: Training result containing:
-            - model_id: MLflow run ID of the trained model
-            - status: Training status ("success" or "error")
-            - message: Detailed success/failure message
-
-    Raises:
-        - HTTPException (400): If dataset format is invalid or configuration errors
-        - HTTPException (500): If training fails due to resource or processing errors
-
-    The training process supports two data source types:
-    - URL: Downloads CSV data from a specified URL
-    - Upload: Accepts base64 encoded CSV content directly
-
-    Notes:
-        - Dataset must contain 'intent' and 'text' columns
-        - All intents in dataset must be included in request's intent list
-        - Training progress is tracked in MLflow for reproducibility
-        - Large datasets may require significant processing time
-    """
     try:
         if request.experiment_name:
             mlflow.set_experiment(request.experiment_name)
+            
         # Load dataset based on source type
         if request.dataset_source.source_type == "url":
             if not request.dataset_source.url:
@@ -513,8 +480,11 @@ async def train_model(request: TrainingRequest) -> dict:
         run_id = package_model(model, intents, tokenizer)
 
         return TrainingResponse(
-            model_id=run_id, status="success", message="Model trained successfully"
+            model_id=run_id,
+            status="success",
+            message="Model trained successfully"
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error training model: {str(e)}")
 

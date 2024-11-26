@@ -415,9 +415,8 @@
                     payload.dataset_source.file_content = fileContent;
                 }
 
-                console.log('Sending payload:', payload); // Debug log
-
-                const response = await fetch('/model/train', {
+                // Train the model
+                const trainResponse = await fetch('/model/train', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -425,24 +424,61 @@
                     body: JSON.stringify(payload)
                 });
 
-                const result = await response.json();
+                const trainResult = await trainResponse.json();
 
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Training failed');
+                if (!trainResponse.ok) {
+                    throw new Error(trainResult.detail || 'Training failed');
                 }
+
+                resultDiv.innerHTML = '<div class="text-blue-600">Training complete. Registering model...</div>';
+
+                // Register the model
+                const modelName = payload.model_name || `intent-model-${trainResult.model_id.slice(0, 8)}`;
+                const registerPayload = {
+                    mlflow_run_id: trainResult.model_id,
+                    name: modelName,
+                    description: `Model trained with ${payload.training_config.base_model_name}`,
+                    tags: {
+                        base_model: payload.training_config.base_model_name,
+                        epochs: payload.training_config.num_epochs,
+                        batch_size: payload.training_config.batch_size,
+                        learning_rate: payload.training_config.learning_rate,
+                        experiment: payload.experiment_name || "default"
+                    }
+                };
+
+                const registerResponse = await fetch('/model/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(registerPayload)
+                });
+
+                if (!registerResponse.ok) {
+                    const registerError = await registerResponse.json();
+                    throw new Error(registerError.detail || 'Model registration failed');
+                }
+
+                const registerResult = await registerResponse.json();
 
                 resultDiv.innerHTML = `
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h4 class="text-green-800 font-medium">Training Successful!</h4>
-                        <p class="text-green-700 mt-1">Model ID: ${result.model_id}</p>
-                        <p class="text-green-600 mt-1">${result.message}</p>
+                        <h4 class="text-green-800 font-medium">Training and Registration Successful!</h4>
+                        <p class="text-green-700 mt-1">Run ID: ${trainResult.model_id}</p>
+                        <p class="text-green-700 mt-1">Registered Name: ${registerResult.name}</p>
+                        <p class="text-green-600 mt-1">${trainResult.message}</p>
                     </div>
                 `;
+
+                // Refresh the model list
+                document.querySelector('[hx-get="/model"]').click();
+
             } catch (error) {
-                console.error('Training error:', error); // Debug log
+                console.error('Error:', error);
                 resultDiv.innerHTML = `
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h4 class="text-red-800 font-medium">Training Failed</h4>
+                        <h4 class="text-red-800 font-medium">Operation Failed</h4>
                         <p class="text-red-700 mt-1">${error.message}</p>
                     </div>
                 `;
