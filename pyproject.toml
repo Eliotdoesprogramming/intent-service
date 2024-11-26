@@ -18,6 +18,9 @@ dependencies = [
     "transformers>=4.46.3"
 ]
 
+[project.scripts]
+intent-service = "run_service:main"
+
 [dependency-groups]
 dev = [
     "hatchling>=1.25.0",
