@@ -1,5 +1,7 @@
+import asyncio
 import base64
 import io
+import json
 import logging
 import time
 from unittest.mock import patch
@@ -17,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    """Create a test client that can handle streaming responses"""
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture
@@ -156,7 +160,7 @@ def test_train_endpoint_with_url(client, mock_csv_content, default_training_conf
                 "source_type": "url",
                 "url": "https://example.com/dataset.csv",
             },
-            "training_config": default_training_config.dict(),
+            "training_config": default_training_config.model_dump(),
         }
 
         response = client.post("/model/train", json=request)
@@ -168,13 +172,12 @@ def test_train_endpoint_with_url(client, mock_csv_content, default_training_conf
 
 def test_train_endpoint_with_upload(client, mock_csv_content, default_training_config):
     encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
-    print(default_training_config.model_dump())
     request = {
         "name": "test_model",
         "description": "Test model",
         "intents": ["greeting", "farewell", "help_request"],
         "dataset_source": {"source_type": "upload", "file_content": encoded_content},
-        "training_config": default_training_config.dict(),
+        "training_config": default_training_config.model_dump(),
     }
 
     response = client.post("/model/train", json=request)
@@ -405,3 +408,151 @@ def test_get_models(client, trained_model):
     assert test_model["description"] == "Test model for listing endpoint"
     assert test_model["tags"]["environment"] == "testing"
     assert test_model["tags"]["version"] == "1.0"
+
+
+@pytest.mark.asyncio
+async def test_train_endpoint_streaming(
+    client, mock_csv_content, default_training_config
+):
+    """Test the streaming training endpoint with normal flow"""
+    encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
+    request = {
+        "name": "test_model",
+        "description": "Test model",
+        "intents": ["greeting", "farewell", "help_request"],
+        "dataset_source": {"source_type": "upload", "file_content": encoded_content},
+        "training_config": default_training_config.model_dump(),
+    }
+
+    with client.stream("POST", "/model/train/stream", json=request) as response:
+        assert response.status_code == 200
+
+        # Track the events we expect to see
+        seen_events = {
+            "initializing": False,
+            "training": False,
+            "packaging": False,
+            "complete": False,
+        }
+        run_id = None
+
+        for line in response.iter_lines():
+            if line:
+                # SSE format is "data: {json}"
+                line_text = line.decode("utf-8") if isinstance(line, bytes) else line
+                assert line_text.startswith("data: ")
+                data = json.loads(line_text.split("data: ")[1])
+
+                assert "status" in data
+                assert "message" in data
+
+                if data["status"] == "initializing":
+                    seen_events["initializing"] = True
+                elif data["status"] == "training":
+                    seen_events["training"] = True
+                    if "current_epoch" in data:
+                        assert isinstance(data["current_epoch"], int)
+                    if "epoch_progress" in data:
+                        assert 0 <= data["epoch_progress"] <= 1
+                elif data["status"] == "packaging":
+                    seen_events["packaging"] = True
+                elif data["status"] == "complete":
+                    seen_events["complete"] = True
+                    assert "run_id" in data
+                    run_id = data["run_id"]
+                elif data["status"] == "error":
+                    pytest.fail(f"Received error: {data['message']}")
+
+        # Verify we saw all expected events
+        assert all(seen_events.values()), "Did not receive all expected event types"
+        assert run_id is not None, "Did not receive run_id in complete event"
+
+
+@pytest.mark.asyncio
+async def test_train_endpoint_streaming_invalid_data(client, default_training_config):
+    """Test the streaming endpoint with invalid data"""
+    # Test with missing file content
+    request = {
+        "name": "test_model",
+        "description": "Test model",
+        "dataset_source": {"source_type": "upload", "file_content": ""},
+        "training_config": default_training_config.model_dump(),
+    }
+
+    with client.stream("POST", "/model/train/stream", json=request) as response:
+        assert response.status_code == 200
+
+        for line in response.iter_lines():
+            if line:
+                line_text = line.decode("utf-8") if isinstance(line, bytes) else line
+                data = json.loads(line_text.split("data: ")[1])
+                if data["status"] == "error":
+                    assert "File content must be provided" in data["message"]
+                    break
+        else:
+            pytest.fail("Did not receive error message")
+
+
+@pytest.mark.asyncio
+async def test_train_endpoint_streaming_client_disconnect(
+    client, mock_csv_content, default_training_config
+):
+    """Test that training stops when client disconnects"""
+    encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
+    request = {
+        "name": "test_model",
+        "description": "Test model",
+        "dataset_source": {"source_type": "upload", "file_content": encoded_content},
+        "training_config": default_training_config.model_dump(),
+    }
+
+    training_started = False
+
+    with client.stream("POST", "/model/train/stream", json=request) as response:
+        assert response.status_code == 200
+
+        for line in response.iter_lines():
+            if line:
+                line_text = line.decode("utf-8") if isinstance(line, bytes) else line
+                data = json.loads(line_text.split("data: ")[1])
+                if data["status"] == "training":
+                    training_started = True
+                    break  # Disconnect after training starts
+
+    assert training_started, "Training never started"
+
+    # Give a moment for cleanup
+    await asyncio.sleep(1)
+
+    # Verify the process was cleaned up by starting a new training
+    with client.stream("POST", "/model/train/stream", json=request) as response:
+        assert response.status_code == 200
+        # Should be able to start a new training session
+
+
+@pytest.mark.asyncio
+async def test_train_endpoint_streaming_invalid_intents(
+    client, mock_csv_content, default_training_config
+):
+    """Test streaming endpoint with intents that don't match the dataset"""
+    encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
+    request = {
+        "name": "test_model",
+        "description": "Test model",
+        "intents": ["invalid_intent"],  # Intent not in dataset
+        "dataset_source": {"source_type": "upload", "file_content": encoded_content},
+        "training_config": default_training_config.model_dump(),
+    }
+
+    with client.stream("POST", "/model/train/stream", json=request) as response:
+        assert response.status_code == 200
+
+        for line in response.iter_lines():
+            if line:
+                line_text = line.decode("utf-8") if isinstance(line, bytes) else line
+                data = json.loads(line_text.split("data: ")[1])
+                if data["status"] == "error":
+                    assert "Dataset contains intents not specified" in data["message"]
+                    break
+        else:
+            pytest.fail("Did not receive error message")

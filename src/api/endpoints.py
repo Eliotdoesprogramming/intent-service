@@ -1,13 +1,17 @@
+import asyncio
 import base64
 import io
+import json
+import multiprocessing
+import queue
 from pathlib import Path
 
 import mlflow
 import pandas as pd
 import polars as pl
 import requests
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -35,6 +39,16 @@ app.mount(
 async def home(request: Request):
     """Serve the main UI page."""
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+# Replace deprecated get_latest_versions calls with newer API
+def get_latest_model_version(client, model_name):
+    """Get the latest version of a model without using deprecated stages API"""
+    versions = client.search_model_versions(f"name='{model_name}'")
+    if not versions:
+        return None
+    # Sort by version number (descending) and get the first one
+    return sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
 
 
 @app.get("/model")
@@ -75,9 +89,8 @@ def get_models(request: ModelSearchRequest = None):
             }
 
             # Get latest version
-            latest_versions = client.get_latest_versions(model.name, stages=["None"])
-            if latest_versions:
-                latest = latest_versions[0]
+            latest = get_latest_model_version(client, model.name)
+            if latest:
                 model_info["version"] = latest.version
 
                 # Get run info if available
@@ -146,12 +159,12 @@ def get_model_info(model_id: str):
         # First try to get as registered model
         try:
             registered_model = client.get_registered_model(model_id)
-            latest_version = client.get_latest_versions(model_id, stages=["None"])[0]
+            latest_version = get_latest_model_version(client, model_id)
 
             # Basic model info
             model_info.update({
                 "name": registered_model.name,
-                "version": latest_version.version,
+                "version": latest_version.version if latest_version else None,
                 "description": registered_model.description,
                 "creation_timestamp": registered_model.creation_timestamp,
                 "last_updated_timestamp": registered_model.last_updated_timestamp,
@@ -173,7 +186,7 @@ def get_model_info(model_id: str):
             }
 
             # Add run info if available
-            if latest_version.run_id:
+            if latest_version and latest_version.run_id:
                 run = client.get_run(latest_version.run_id)
                 model_info["run_info"] = {
                     "run_id": run.info.run_id,
@@ -259,9 +272,9 @@ def search_models(model_search_request: ModelSearchRequest):
             }
 
             # Get latest version
-            latest_versions = client.get_latest_versions(rm.name, stages=["None"])
-            if latest_versions:
-                model_info["version"] = latest_versions[0].version
+            latest = get_latest_model_version(client, rm.name)
+            if latest:
+                model_info["version"] = latest.version
 
             # Get all tags
             tags = rm.tags if rm.tags else {}
@@ -417,8 +430,180 @@ def delete_model(model_id: int):
     pass
 
 
+def train_model_process(request_dict, progress_queue, shutdown_event):
+    """
+    Process function that runs the model training.
+    Checks shutdown_event periodically to handle graceful termination.
+    """
+    try:
+        # Convert dict back to TrainingRequest
+        request = TrainingRequest(**request_dict)
+
+        if request.experiment_name:
+            mlflow.set_experiment(request.experiment_name)
+
+        # Load dataset based on source type
+        if request.dataset_source.source_type == "url":
+            if not request.dataset_source.url:
+                progress_queue.put({
+                    "error": "URL must be provided when source_type is 'url'"
+                })
+                return
+
+            response = requests.get(str(request.dataset_source.url))
+            if response.status_code != 200:
+                progress_queue.put({
+                    "error": f"Failed to download dataset from URL: {response.status_code}"
+                })
+                return
+
+            if isinstance(response.text, bytes):
+                data = pl.read_csv(io.StringIO(response.text.decode()))
+            else:
+                data = pl.read_csv(io.StringIO(response.text))
+
+        elif request.dataset_source.source_type == "upload":
+            if not request.dataset_source.file_content:
+                progress_queue.put({
+                    "error": "File content must be provided when source_type is 'upload'"
+                })
+                return
+
+            try:
+                file_content = base64.b64decode(request.dataset_source.file_content)
+                data = pl.read_csv(io.BytesIO(file_content))
+            except Exception as e:
+                progress_queue.put({
+                    "error": f"Failed to decode file content: {str(e)}"
+                })
+                return
+        else:
+            progress_queue.put({
+                "error": "Invalid source_type. Must be 'url' or 'upload'"
+            })
+            return
+
+        # Validate dataset columns
+        required_columns = ["intent", "text"]
+        if not all(col in data.columns for col in required_columns):
+            progress_queue.put({
+                "error": f"Dataset must contain columns: {required_columns}"
+            })
+            return
+
+        # Validate intents in dataset match requested intents
+        unique_intents = set(data["intent"].unique().to_list())
+        if request.intents and not set(request.intents).issubset(unique_intents):
+            progress_queue.put({
+                "error": "Dataset contains intents not specified in the model configuration"
+            })
+            return
+
+        # Create training config
+        training_config = request.training_config or TrainingConfig()
+
+        # Check for early termination
+        if shutdown_event.is_set():
+            progress_queue.put({"error": "Training cancelled by client"})
+            return
+
+        # Train the model with config and progress reporting
+        progress_queue.put({
+            "status": "training",
+            "message": "Starting model training...",
+        })
+        model, intents, tokenizer = train_intent_classifier(
+            data, training_config, progress_queue, shutdown_event
+        )
+
+        # Check for termination after training
+        if shutdown_event.is_set():
+            progress_queue.put({"error": "Training cancelled by client"})
+            return
+
+        progress_queue.put({"status": "packaging", "message": "Packaging model..."})
+        run_id = package_model(model, intents, tokenizer)
+
+        progress_queue.put({
+            "status": "complete",
+            "run_id": run_id,
+            "message": "Model training completed successfully",
+        })
+
+    except Exception as e:
+        progress_queue.put({"error": str(e)})
+
+
+@app.post("/model/train/stream")
+async def train_model_stream(
+    request: TrainingRequest, background_tasks: BackgroundTasks
+):
+    """
+    Stream the training process for a new model.
+
+    This endpoint runs the training in a separate process and streams progress updates.
+    If the client disconnects, the training process will be terminated.
+
+    Returns:
+        StreamingResponse: A stream of JSON events containing training progress and final run_id
+    """
+    progress_queue = multiprocessing.Queue()
+    shutdown_event = multiprocessing.Event()
+
+    # Start training process
+    process = multiprocessing.Process(
+        target=train_model_process,
+        args=(request.model_dump(), progress_queue, shutdown_event),
+    )
+    process.start()
+
+    async def cleanup():
+        """Cleanup function that runs when the client disconnects"""
+        shutdown_event.set()  # Signal the training process to stop
+        process.join(timeout=5)  # Wait up to 5 seconds for graceful shutdown
+        if process.is_alive():
+            process.terminate()  # Force terminate if still running
+            process.join()  # Ensure process is fully cleaned up
+
+    async def event_stream():
+        try:
+            while True:
+                try:
+                    # Non-blocking queue check
+                    try:
+                        data = progress_queue.get_nowait()
+                        if "error" in data:
+                            yield f"data: {json.dumps({'status': 'error', 'message': data['error']})}\n\n"
+                            break
+                        yield f"data: {json.dumps(data)}\n\n"
+                        if data.get("status") == "complete":
+                            break
+                    except queue.Empty:
+                        if not process.is_alive():  # Check if process died unexpectedly
+                            yield f"data: {json.dumps({'status': 'error', 'message': 'Training process terminated unexpectedly'})}\n\n"
+                            break
+                        await asyncio.sleep(0.1)
+                        continue
+
+                except Exception as e:
+                    yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                    break
+        finally:
+            await cleanup()
+
+    return StreamingResponse(
+        event_stream(), media_type="text/event-stream", background=background_tasks
+    )
+
+
 @app.post("/model/train", response_model=TrainingResponse)
 async def train_model(request: TrainingRequest) -> dict:
+    """
+    Train a new model using the provided dataset and configuration.
+
+    Returns:
+        TrainingResponse: Contains the MLflow run ID and training status
+    """
     try:
         if request.experiment_name:
             mlflow.set_experiment(request.experiment_name)
