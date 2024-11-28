@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Eliot Zubkoff", email = "eliot.i.zubkoff@gmail.com"}
 ]
-license = "MIT"
+license = {text = "MIT"}
 keywords = ["intent", "classification", "nlp", "machine-learning"]
 classifiers = [
     "Development Status :: 4 - Beta",
