@@ -1,50 +1,116 @@
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
-import mlflow
-import polars as pl
 import pytest
 from typer.testing import CliRunner
 
+from api.client import IntentServiceClient
 from cli import app
 
 runner = CliRunner()
 
 
-@pytest.fixture
-def mock_mlflow():
-    with patch("cli.get_mlflow") as mock:
-        mlflow_mock = MagicMock()
-        mock.return_value = mlflow_mock
-        yield mlflow_mock
+@pytest.fixture(autouse=True)
+def setup_api_client():
+    """Reset the API client before each test."""
+    with patch("cli.get_api_client") as mock:
+        yield mock
 
 
 @pytest.fixture
-def mock_train_utils():
-    with patch("cli.get_train_utils") as mock:
-        package_model_mock = MagicMock(return_value="test_run_id")
-        train_classifier_mock = MagicMock(
-            return_value=(MagicMock(), ["greeting", "farewell"], MagicMock())
-        )
-        mock.return_value = (package_model_mock, train_classifier_mock)
-        yield package_model_mock, train_classifier_mock
+def mock_api_client(setup_api_client):
+    """Create a mock API client and inject it into the CLI."""
+    client = MagicMock(spec=IntentServiceClient)
+    setup_api_client.return_value = client
+    return client
 
 
-@pytest.fixture
-def mock_api():
-    with patch("cli.get_api") as mock:
-        app_mock = MagicMock()
-        uvicorn_mock = MagicMock()
-        mock.return_value = (app_mock, uvicorn_mock)
-        yield app_mock, uvicorn_mock
+def test_predict_command(mock_api_client):
+    # Mock prediction response
+    mock_api_client.predict.return_value = {"greeting": 0.8, "farewell": 0.2}
+
+    # Test successful prediction
+    result = runner.invoke(app, ["predict", "test_model", "hello there"])
+    assert result.exit_code == 0
+    assert "Intent Predictions" in result.stdout
+    mock_api_client.predict.assert_called_once_with(
+        model_id="test_model", text="hello there"
+    )
+
+    # Test prediction with API error
+    mock_api_client.predict.side_effect = Exception("API Error")
+    result = runner.invoke(app, ["predict", "invalid_model", "hello"])
+    assert result.exit_code == 1
+    assert "Error making prediction" in result.stdout
 
 
-def test_register_command(mock_mlflow):
-    # Mock the model loading and registration
-    loaded_model = MagicMock()
-    loaded_model._model_impl.python_model.intent_labels = ["greeting", "farewell"]
-    mock_mlflow.pyfunc.load_model.return_value = loaded_model
+def test_train_command(mock_api_client, tmp_path):
+    # Create a temporary CSV file
+    data_path = tmp_path / "test_data.csv"
+    data_path.write_text("intent,text\ngreeting,hello\nfarewell,goodbye")
 
-    mock_mlflow.register_model.return_value = MagicMock(version="1")
+    # Mock training response
+    mock_api_client.train.return_value = "test_run_id"
+
+    # Test successful training
+    result = runner.invoke(
+        app,
+        [
+            "train",
+            str(data_path),
+            "--experiment-name",
+            "test_experiment",
+            "--num-epochs",
+            "2",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Successfully trained model" in result.stdout
+    mock_api_client.train.assert_called_once()
+
+    # Test training with invalid dataset
+    nonexistent_path = tmp_path / "nonexistent.csv"
+    result = runner.invoke(app, ["train", str(nonexistent_path)])
+    assert result.exit_code == 1
+    expected_error = f"Error: Dataset file not found: {str(nonexistent_path).strip()}"
+    assert expected_error in result.stdout.replace("\n", "")
+
+
+def test_info_command(mock_api_client):
+    # Mock model info response
+    mock_api_client.get_model_info.return_value = {
+        "name": "test_model",
+        "version": "1",
+        "description": "Test model",
+        "tags": {"version": "1.0.0"},
+        "intents": ["greeting", "farewell"],
+        "run_info": {
+            "run_id": "test_run",
+            "status": "FINISHED",
+            "metrics": {"accuracy": 0.95},
+            "params": {"epochs": "3"},
+        },
+    }
+
+    # Test info retrieval
+    result = runner.invoke(app, ["info", "test_model"])
+    assert result.exit_code == 0
+    assert "Model Information" in result.stdout
+    mock_api_client.get_model_info.assert_called_once_with("test_model")
+
+    # Test info retrieval with API error
+    mock_api_client.get_model_info.side_effect = Exception("API Error")
+    result = runner.invoke(app, ["info", "invalid_model"])
+    assert result.exit_code == 1
+    assert "Error retrieving model info" in result.stdout
+
+
+def test_register_command(mock_api_client):
+    # Mock registration response
+    mock_api_client.register_model.return_value = {
+        "name": "test_model",
+        "version": "1",
+        "status": "success",
+    }
 
     # Test successful registration
     result = runner.invoke(
@@ -61,150 +127,118 @@ def test_register_command(mock_mlflow):
     )
     assert result.exit_code == 0
     assert "Successfully registered model" in result.stdout
+    mock_api_client.register_model.assert_called_once()
 
-    # Test registration with invalid run ID
-    mock_mlflow.pyfunc.load_model.side_effect = mlflow.exceptions.MlflowException(
-        "Not found"
-    )
+    # Test registration with API error
+    mock_api_client.register_model.side_effect = Exception("API Error")
     result = runner.invoke(app, ["register", "invalid_run_id", "test_model"])
     assert result.exit_code == 1
+    assert "Error registering model" in result.stdout
 
 
-def test_search_command(mock_mlflow):
-    # Mock the search results
-    mock_client = MagicMock()
-    mock_mlflow.tracking.MlflowClient.return_value = mock_client
+def test_search_command(mock_api_client):
+    # Mock search response
+    mock_api_client.search_models.return_value = [
+        {
+            "name": "test_model",
+            "version": "1",
+            "description": "Test model",
+            "tags": {"version": "1.0.0"},
+            "intents": ["greeting", "farewell"],
+        }
+    ]
 
-    # Create a more complete mock model with all required attributes
-    mock_model = MagicMock(
-        name="test_model",
-        description="Test model",
-        creation_timestamp=1234567890,
-        last_updated_timestamp=1234567890,
-    )
-    # Mock tags as a property to ensure proper access
-    type(mock_model).tags = PropertyMock(
-        return_value={"intent_greeting": "true", "version": "1.0.0"}
-    )
-
-    mock_client.search_registered_models.return_value = [mock_model]
-
-    # Mock version with more complete attributes
-    mock_version = MagicMock(
-        version="1", current_stage="None", status="READY", run_id="test_run_id"
-    )
-    mock_client.get_latest_versions.return_value = [mock_version]
-
-    # Remove the stderr debug print since it's not captured
-    result = runner.invoke(app, ["search"], catch_exceptions=True)
-    print(f"Command output: {result.stdout}")
-    if result.exception:
-        print(f"Exception: {result.exception}")
+    # Test search with no filters
+    result = runner.invoke(app, ["search"])
     assert result.exit_code == 0
+    assert "Search Results" in result.stdout
+    mock_api_client.search_models.assert_called_with({})
 
-    # Add specific assertions about what should be in the output
-    # This will help identify what's not rendering correctly
-    assert "test_model" in result.stdout
-    assert "Test model" in result.stdout
-    assert "1.0.0" in result.stdout
-
-
-def test_train_command(mock_mlflow, mock_train_utils, tmp_path):
-    # Create a temporary CSV file
-    data_path = tmp_path / "test_data.csv"
-    test_data = pl.DataFrame({
-        "intent": ["greeting", "farewell"],
-        "text": ["hello", "goodbye"],
-    })
-    test_data.write_csv(data_path)
-
-    # Test successful training
+    # Test search with filters
     result = runner.invoke(
         app,
         [
-            "train",
-            str(data_path),
-            "--experiment-name",
-            "test_experiment",
-            "--num-epochs",
-            "2",
+            "search",
+            "--name-contains",
+            "test",
+            "--tags",
+            '{"version": "1.0.0"}',
+            "--intents",
+            "greeting,farewell",
         ],
     )
     assert result.exit_code == 0
-    assert "Successfully trained model" in result.stdout
+    mock_api_client.search_models.assert_called_with({
+        "name_contains": "test",
+        "tags": {"version": "1.0.0"},
+        "intents": ["greeting", "farewell"],
+    })
 
-    # Test training with invalid dataset
-    result = runner.invoke(app, ["train", str(tmp_path / "nonexistent.csv")])
+    # Test search with no results
+    mock_api_client.search_models.return_value = []
+    result = runner.invoke(app, ["search"])
+    assert result.exit_code == 0
+    assert "No models found" in result.stdout
+
+    # Test search with API error
+    mock_api_client.search_models.side_effect = Exception("API Error")
+    result = runner.invoke(app, ["search"])
     assert result.exit_code == 1
-    assert "Error loading dataset" in result.stdout
+    assert "Error searching models" in result.stdout
 
 
-def test_info_command(mock_mlflow):
-    # Mock model info retrieval
-    mock_client = mock_mlflow.tracking.MlflowClient()
-    mock_client.get_registered_model.return_value = MagicMock(
-        name="test_model",
-        description="Test model",
-        tags={"intent_greeting": "true"},
-        creation_timestamp=1234567890,
-        last_updated_timestamp=1234567890,
-    )
-    mock_client.get_latest_versions.return_value = [
-        MagicMock(version="1", run_id="test_run")
-    ]
-    mock_client.get_run.return_value = MagicMock(
-        info=MagicMock(
-            run_id="test_run",
-            status="FINISHED",
-            start_time=1234567890,
-            end_time=1234567890,
-        ),
-        data=MagicMock(metrics={"accuracy": 0.95}, params={"epochs": "3"}),
-    )
+def test_serve_command():
+    with patch("cli.get_api") as mock_api:
+        app_mock, uvicorn_mock = MagicMock(), MagicMock()
+        mock_api.return_value = (app_mock, uvicorn_mock)
 
-    # Test info retrieval by model name
-    result = runner.invoke(app, ["info", "test_model"])
-    assert result.exit_code == 0
-    assert "Model Information" in result.stdout
+        # Test development mode
+        result = runner.invoke(app, ["serve", "--port", "8000"])
+        assert result.exit_code == 0
+        assert "Starting API server" in result.stdout
 
-    # Test info retrieval by run ID
-    result = runner.invoke(app, ["info", "test_run"])
-    assert result.exit_code == 0
-    assert "Model Information" in result.stdout
+        # Test production mode
+        result = runner.invoke(
+            app, ["serve", "--environment", "prod", "--workers", "4"]
+        )
+        assert result.exit_code == 0
+        assert "Starting API server" in result.stdout
+
+        # Verify uvicorn configuration
+        uvicorn_mock.run.assert_called()
 
 
-def test_predict_command(mock_mlflow):
-    # Mock model loading and prediction
-    mock_model = MagicMock()
-    mock_model.predict.return_value = [{"greeting": 0.8, "farewell": 0.2}]
-    mock_mlflow.pyfunc.load_model.return_value = mock_model
+def test_api_url_configuration():
+    """Test different ways of configuring the API URL."""
+    # Test default URL
+    client = IntentServiceClient()
+    assert client.base_url == "http://localhost:8000"
 
-    # Test prediction with registered model
-    result = runner.invoke(app, ["predict", "test_model", "hello there"])
-    assert result.exit_code == 0
-    assert "Intent Predictions" in result.stdout
+    # Test command-line option
+    with patch("cli.IntentServiceClient") as mock_client_class:
+        mock_client = MagicMock(spec=IntentServiceClient)
+        mock_client_class.return_value = mock_client
+        mock_client.get_model_info.return_value = {
+            "name": "test_model",
+            "version": "1",
+        }
 
-    # Test prediction with invalid model
-    mock_mlflow.pyfunc.load_model.side_effect = mlflow.exceptions.MlflowException(
-        "Not found"
-    )
-    result = runner.invoke(app, ["predict", "invalid_model", "hello"])
-    assert result.exit_code == 1
-    assert "Error making prediction" in result.stdout
+        result = runner.invoke(
+            app, ["--api-url", "http://cli.example.com", "info", "test-model"]
+        )
+        assert result.exit_code == 0
+        mock_client_class.assert_called_once_with(base_url="http://cli.example.com")
 
+    # Test environment variable
+    with patch("cli.IntentServiceClient") as mock_client_class:
+        mock_client = MagicMock(spec=IntentServiceClient)
+        mock_client_class.return_value = mock_client
+        mock_client.get_model_info.return_value = {
+            "name": "test_model",
+            "version": "1",
+        }
 
-def test_serve_command(mock_api):
-    _app_mock, uvicorn_mock = mock_api
-
-    # Test development mode
-    result = runner.invoke(app, ["serve", "--port", "8000"])
-    assert result.exit_code == 0
-    assert "Starting API server" in result.stdout
-
-    # Test production mode
-    result = runner.invoke(app, ["serve", "--environment", "prod", "--workers", "4"])
-    assert result.exit_code == 0
-    assert "Starting API server" in result.stdout
-
-    # Verify uvicorn configuration
-    uvicorn_mock.run.assert_called()
+        with patch.dict("os.environ", {"INTENT_SERVICE_URL": "http://env.example.com"}):
+            result = runner.invoke(app, ["info", "test-model"])
+            assert result.exit_code == 0
+            mock_client_class.assert_called_once_with(base_url="http://env.example.com")
