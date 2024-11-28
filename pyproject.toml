@@ -18,6 +18,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+[project.urls]
+Homepage = "https://github.com/eliotdoesprogramming/intent-service"
+Repository = "https://github.com/eliotdoesprogramming/intent-service"
+
 dependencies = [
     "fastapi>=0.68.0,<1.0.0",
     "pydantic>=2.4.2,<3.0.0",
