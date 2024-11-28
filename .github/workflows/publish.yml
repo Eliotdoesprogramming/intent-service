@@ -28,13 +28,9 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     
-    - name: Build package
-      run: uv build
-    
-    - name: Publish to PyPI
+    - name: Build and publish
       env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        uv pip install twine
-        twine upload dist/* 
+        uv build --no-sources
+        uv publish
