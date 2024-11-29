@@ -182,6 +182,8 @@
                                           file:text-sm file:font-semibold
                                           file:bg-sky-50 file:text-sky-700
                                           hover:file:bg-sky-100">
+                            <input type="hidden" id="fileContent">
+                            <div id="fileStatus" class="text-sm"></div>
                         </div>
                     </div>
                 </div>
@@ -206,12 +208,12 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-sky-700">Intents</label>
+                        <label class="block text-sm font-medium text-sky-700">Intents (Optional)</label>
                         <input type="text" 
                                id="intents"
                                class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
                                placeholder="greeting,farewell,help_request">
-                        <p class="mt-1 text-sm text-sky-600">Must match the intents in your dataset</p>
+                        <p class="mt-1 text-sm text-sky-600">If specified, must match the intents in your dataset. Leave empty to use all intents from dataset.</p>
                     </div>
                 </div>
 
@@ -262,32 +264,6 @@
                 </button>
             </form>
             <div id="trainingResult" class="mt-4"></div>
-        </div>
-
-        <!-- Model Prediction Section -->
-        <div class="glass-card rounded-xl p-6">
-            <h2 class="text-xl font-semibold mb-4 text-sky-900">Make Predictions</h2>
-            <form class="space-y-4" id="predictionForm">
-                <div>
-                    <label class="block text-sm font-medium text-sky-700">Model ID</label>
-                    <input type="text" 
-                           id="modelIdInput"
-                           class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
-                           placeholder="Enter model ID or name">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-sky-700">Text to Classify</label>
-                    <textarea name="text" 
-                              rows="3" 
-                              class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
-                              placeholder="Enter text to classify..."></textarea>
-                </div>
-                <button type="submit" 
-                        class="glass-button text-white px-6 py-2 rounded-lg">
-                    Predict
-                </button>
-            </form>
-            <div id="predictionResult" class="mt-4"></div>
         </div>
 
         <!-- Model Search Section -->
@@ -391,6 +367,14 @@
                                     <span class="block font-medium text-sky-700">Run ID</span>
                                     <span class="text-sky-600">${model.run_info.run_id}</span>
                                 </div>
+
+                                <div class="mt-4">
+                                    <button 
+                                        onclick="useModelForPrediction('${model.name}')"
+                                        class="glass-button text-white px-4 py-2 rounded-lg text-sm w-full">
+                                        Use for Prediction
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `).join('');
@@ -492,11 +476,9 @@
 
                 // Prepare the request payload
                 const sourceType = document.getElementById('sourceType').value;
+                console.log('sourceType', sourceType);
                 const intentsString = document.getElementById('intents').value;
-                
-                if (!intentsString) {
-                    throw new Error('Please specify the intents');
-                }
+                console.log('intentsString', intentsString);
 
                 const payload = {
                     dataset_source: {
@@ -601,63 +583,145 @@
             }
         });
 
-        // Handle prediction form submission
-        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const modelId = document.getElementById('modelIdInput').value;
-            const text = this.querySelector('textarea[name="text"]').value;
-            
-            if (!modelId || !text) {
-                document.getElementById('predictionResult').innerHTML = `
-                    <div class="text-red-600">Please provide both model ID and text.</div>
-                `;
+        // Move form setup into a function
+        function setupPredictionForm() {
+            const predictionForm = document.getElementById('predictionForm');
+            if (!predictionForm) {
+                console.error('Prediction form not found');
                 return;
             }
 
-            try {
-                console.log(modelId, text);
-                const response = await fetch(`/model/${modelId}/predict?text=${encodeURIComponent(text)}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+            predictionForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const modelId = document.getElementById('modelIdInput').value;
+                const text = this.querySelector('textarea[name="text"]').value;
+                const resultDiv = document.getElementById('predictionResult');
+                const submitButton = this.querySelector('button[type="submit"]');
+                
+                if (!modelId || !text) {
+                    resultDiv.innerHTML = `
+                        <div class="text-red-600">Please provide both model ID and text.</div>
+                    `;
+                    return;
                 }
 
-                const result = await response.json();
-                
-                // Format the prediction results
-                const resultHtml = `
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <h3 class="font-medium text-gray-900 mb-2">Prediction Results</h3>
-                        <div class="space-y-2">
-                            ${Object.entries(result)
-                                .sort(([,a], [,b]) => b - a) // Sort by confidence score descending
-                                .map(([intent, confidence]) => `
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-gray-700">${intent}</span>
-                                        <div class="flex items-center">
-                                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-2">
-                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${confidence * 100}%"></div>
+                try {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = 'Predicting...';
+                    
+                    console.log('Sending prediction request:', { modelId, text });
+                    
+                    const response = await fetch(`/model/${encodeURIComponent(modelId)}/predict?text=${encodeURIComponent(text)}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    const resultHtml = `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-900 mb-2">Prediction Results</h3>
+                            <div class="space-y-2">
+                                ${Object.entries(result)
+                                    .sort(([,a], [,b]) => b - a)
+                                    .map(([intent, confidence]) => `
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-700">${intent}</span>
+                                            <div class="flex items-center">
+                                                <div class="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                                                    <div class="bg-blue-600 h-2 rounded-full" style="width: ${confidence * 100}%"></div>
+                                                </div>
+                                                <span class="text-sm text-gray-600">${(confidence * 100).toFixed(1)}%</span>
                                             </div>
-                                            <span class="text-sm text-gray-600">${(confidence * 100).toFixed(1)}%</span>
                                         </div>
-                                    </div>
-                                `).join('')}
+                                    `).join('')}
+                            </div>
                         </div>
-                    </div>
-                `;
-                
-                document.getElementById('predictionResult').innerHTML = resultHtml;
-            } catch (error) {
-                document.getElementById('predictionResult').innerHTML = `
-                    <div class="text-red-600">Error: ${error.message}</div>
-                `;
+                    `;
+                    
+                    resultDiv.innerHTML = resultHtml;
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="text-red-600">Error: ${error.message}</div>
+                    `;
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Predict';
+                }
+            });
+        }
+
+        // Call setup when opening the modal
+        function useModelForPrediction(modelId) {
+            console.log('Opening prediction modal for model:', modelId);
+            document.getElementById('modelIdInput').value = modelId;
+            
+            const modal = document.getElementById('predictionModal');
+            modal.classList.remove('hidden');
+            
+            // Set up the form when opening the modal
+            setupPredictionForm();
+            
+            document.querySelector('#predictionForm textarea').focus();
+        }
+
+        function closePredictionModal() {
+            const modal = document.getElementById('predictionModal');
+            modal.classList.add('hidden');
+            // Clear the form and results
+            document.getElementById('predictionForm').reset();
+            document.getElementById('predictionResult').innerHTML = '';
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('predictionModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePredictionModal();
             }
         });
     </script>
+
+    <!-- Prediction Modal Dialog -->
+    <div id="predictionModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity hidden" style="z-index: 1000;">
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0" onclick="closePredictionModal()">
+                <div class="glass-card relative transform overflow-hidden rounded-lg text-left transition-all sm:my-8 sm:w-full sm:max-w-xl" onclick="event.stopPropagation()">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-semibold text-sky-900">Make Prediction</h3>
+                            <button onclick="closePredictionModal()" class="text-gray-400 hover:text-gray-500">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4">
+                        <form id="predictionForm" class="space-y-4">
+                            <input type="hidden" id="modelIdInput">
+                            <div>
+                                <label class="block text-sm font-medium text-sky-700">Text to Classify</label>
+                                <textarea name="text" 
+                                        rows="3" 
+                                        class="glass-input mt-1 block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500" 
+                                        placeholder="Enter text to classify..."></textarea>
+                            </div>
+                            <button type="submit" 
+                                    class="glass-button text-white px-6 py-2 rounded-lg w-full">
+                                Predict
+                            </button>
+                        </form>
+                        <div id="predictionResult" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

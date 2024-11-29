@@ -493,11 +493,12 @@ def train_model_process(request_dict, progress_queue, shutdown_event):
 
         # Validate intents in dataset match requested intents
         unique_intents = set(data["intent"].unique().to_list())
-        if request.intents and not set(request.intents).issubset(unique_intents):
-            progress_queue.put({
-                "error": "Dataset contains intents not specified in the model configuration"
-            })
-            return
+        if request.intents:  # Only validate if intents are specified
+            if not set(request.intents).issubset(unique_intents):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Requested intents {request.intents} are not all present in dataset intents {list(unique_intents)}",
+                )
 
         # Create training config
         training_config = request.training_config or TrainingConfig()
@@ -657,11 +658,12 @@ async def train_model(request: TrainingRequest) -> dict:
 
         # Validate intents in dataset match requested intents
         unique_intents = set(data["intent"].unique().to_list())
-        if request.intents and not set(request.intents).issubset(unique_intents):
-            raise HTTPException(
-                status_code=400,
-                detail="Dataset contains intents not specified in the model configuration",
-            )
+        if request.intents:  # Only validate if intents are specified
+            if not set(request.intents).issubset(unique_intents):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Requested intents {request.intents} are not all present in dataset intents {list(unique_intents)}",
+                )
 
         # Create training config
         training_config = request.training_config or TrainingConfig()
