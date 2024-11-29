@@ -1,13 +1,13 @@
 [project]
 name = "intent-service"
-version = "0.1.6"
+version = "0.1.7"
 description = "Intent classification service"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     {name = "Eliot Zubkoff", email = "eliot.i.zubkoff@gmail.com"}
 ]
-license = {text = "MIT"}
+license = "MIT"
 keywords = ["intent", "classification", "nlp", "machine-learning"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -107,7 +107,6 @@ known-first-party = ["api", "ml", "schema"]
 
 [tool.uv]
 package = true
-metadata-version = "2.4"
 
 [tool.ruff.format]
 # Enable line wrap fixing
