@@ -684,11 +684,14 @@
         }
 
         // Close modal when clicking outside
-        document.getElementById('predictionModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePredictionModal();
-            }
-        });
+        const predictModal = document.getElementById('predictionModal')
+        if (predictModal){
+            predictModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePredictionModal();
+                }
+            });
+        }
     </script>
 
     <!-- Prediction Modal Dialog -->
