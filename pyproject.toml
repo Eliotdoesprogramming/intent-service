@@ -1,6 +1,6 @@
 [project]
 name = "intent-service"
-version = "0.1.5"
+version = "0.1.6"
 description = "Intent classification service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -107,6 +107,7 @@ known-first-party = ["api", "ml", "schema"]
 
 [tool.uv]
 package = true
+metadata-version = "2.4"
 
 [tool.ruff.format]
 # Enable line wrap fixing
