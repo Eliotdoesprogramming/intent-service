@@ -1,4 +1,4 @@
-.PHONY: dockerdev test lint lint-fix clean
+.PHONY: dockerdev test test-short test-long test-cov lint lint-fix clean
 
 # Image name for consistency
 IMAGE_NAME = test-intent
@@ -7,7 +7,7 @@ IMAGE_NAME = test-intent
 PYTHON_PATHS = src
 
 # Test settings
-TEST_PATHS = src/
+TEST_PATHS = tests/
 PYTEST_ARGS = -v
 
 # Ruff settings
@@ -20,6 +20,12 @@ dockerdev:
 
 test:
 	uv run pytest $(TEST_PATHS) $(PYTEST_ARGS)
+
+test-short:
+	uv run pytest $(TEST_PATHS) $(PYTEST_ARGS) -m "not long"
+
+test-long:
+	uv run pytest $(TEST_PATHS) $(PYTEST_ARGS) -m long
 
 test-cov:
 	uv run pytest $(TEST_PATHS) $(PYTEST_ARGS) --cov=$(PYTHON_PATHS) --cov-report=term-missing

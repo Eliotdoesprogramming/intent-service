@@ -113,6 +113,7 @@ help_request,could you help me out
 help_request,having trouble with this"""
 
 
+@pytest.mark.short
 def test_predict_endpoint(client, trained_model):
     run_id = trained_model["run_id"]
     test_cases = [
@@ -139,12 +140,14 @@ def test_predict_endpoint(client, trained_model):
         assert all(0 <= score <= 1 for score in prediction.values())
 
 
+@pytest.mark.short
 def test_predict_invalid_model(client):
     id = "99999"
     response = client.post(f"/model/{id}/predict", params={"text": "hello"})
     assert response.status_code == 404
 
 
+@pytest.mark.long
 def test_train_endpoint_with_url(client, mock_csv_content, default_training_config):
     with patch("requests.get") as mock_get:
         mock_response = mock_get.return_value
@@ -170,6 +173,7 @@ def test_train_endpoint_with_url(client, mock_csv_content, default_training_conf
         mock_get.assert_called_once_with("https://example.com/dataset.csv")
 
 
+@pytest.mark.long
 def test_train_endpoint_with_upload(client, mock_csv_content, default_training_config):
     encoded_content = base64.b64encode(mock_csv_content.encode()).decode()
     request = {
