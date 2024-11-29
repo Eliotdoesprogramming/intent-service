@@ -1,13 +1,13 @@
 [project]
 name = "intent-service"
-version = "0.1.7"
+version = "0.1.6"
 description = "Intent classification service"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     {name = "Eliot Zubkoff", email = "eliot.i.zubkoff@gmail.com"}
 ]
-license = "MIT"
+license = {file = "LICENSE"}
 keywords = ["intent", "classification", "nlp", "machine-learning"]
 classifiers = [
     "Development Status :: 4 - Beta",
