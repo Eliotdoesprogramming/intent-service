@@ -26,9 +26,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-    
-    - name: Lint
-      run: make lint-fix
       
     - name: Install dependencies
       run: |
@@ -36,6 +33,8 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         uv pip install --system -e ".[dev]"
     
+    - name: Lint
+      run: make lint-fix
 
   check-version:
     needs: build
