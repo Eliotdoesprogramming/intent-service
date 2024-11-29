@@ -52,44 +52,46 @@ def get_latest_model_version(client, model_name):
 
 
 @app.get("/model")
-def get_models(request: ModelSearchRequest = None):
+def get_models(name_contains: str = None, intents: str = None, limit: int = 100):
     """
     List all registered models and their details from MLflow.
+    Supports filtering by name and intents.
 
     Parameters:
-        request (ModelSearchRequest, optional): Search criteria for filtering models
+        name_contains (str, optional): Substring to match in model names
+        intents (str, optional): Comma-separated list of required intents
+        limit (int, optional): Maximum number of results to return (default: 100)
 
     Returns:
-        list: List of model information dictionaries containing:
-            - name: Model name
-            - version: Latest version number
-            - description: Model description
-            - creation_timestamp: When model was created
-            - last_updated_timestamp: When model was last modified
-            - intents: List of supported intent labels
-            - tags: Additional metadata tags
-            - run_info: Information about the training run
-
-    Raises:
-        HTTPException(500): If there are errors accessing MLflow
+        list: List of matching model information dictionaries
     """
     try:
         client = mlflow.tracking.MlflowClient()
-        models = []
+        results = []
+
+        # Parse intents if provided
+        required_intents = []
+        if intents:
+            required_intents = [i.strip() for i in intents.split(",") if i.strip()]
 
         # Get all registered models
         registered_models = client.search_registered_models()
 
-        for model in registered_models:
+        for rm in registered_models:
+            # Apply name filter if specified
+            if name_contains:
+                if name_contains.lower() not in rm.name.lower():
+                    continue  # Skip this model if name doesn't match
+
             model_info = {
-                "name": model.name,
-                "description": model.description,
-                "creation_timestamp": model.creation_timestamp,
-                "last_updated_timestamp": model.last_updated_timestamp,
+                "name": rm.name,
+                "description": rm.description,
+                "creation_timestamp": rm.creation_timestamp,
+                "last_updated_timestamp": rm.last_updated_timestamp,
             }
 
             # Get latest version
-            latest = get_latest_model_version(client, model.name)
+            latest = get_latest_model_version(client, rm.name)
             if latest:
                 model_info["version"] = latest.version
 
@@ -103,22 +105,34 @@ def get_models(request: ModelSearchRequest = None):
                         "params": run.data.params,
                     }
 
-            # Get intent labels from tags
-            intent_tags = {
-                k: v for k, v in model.tags.items() if k.startswith("intent_")
-            }
-            model_info["intents"] = [
-                k.replace("intent_", "") for k in intent_tags.keys()
+            # Get all tags
+            tags = rm.tags if rm.tags else {}
+
+            # Extract intents from tags
+            model_intents = [
+                tag.replace("intent_", "")
+                for tag in tags.keys()
+                if tag.startswith("intent_")
             ]
+            model_info["intents"] = model_intents
 
-            # Add remaining tags
+            # Filter non-intent tags
             model_info["tags"] = {
-                k: v for k, v in model.tags.items() if not k.startswith("intent_")
+                k: v for k, v in tags.items() if not k.startswith("intent_")
             }
 
-            models.append(model_info)
+            # Apply intent filters if specified
+            if required_intents:
+                if not set(required_intents).issubset(set(model_intents)):
+                    continue  # Skip this model if it doesn't have all required intents
 
-        return models
+            results.append(model_info)
+
+            # Apply result limit
+            if len(results) >= limit:
+                break
+
+        return results
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing models: {str(e)}")

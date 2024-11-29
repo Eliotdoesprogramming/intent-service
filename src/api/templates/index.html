@@ -124,26 +124,75 @@
     <main class="max-w-7xl mx-auto p-6 space-y-6">
         <!-- Model List Section -->
         <div class="glass-card rounded-xl p-6">
-            <h2 class="text-xl font-semibold mb-4 text-sky-900">Available Models</h2>
-            <div class="space-y-4">
-                <button
-                    class="glass-button text-white px-6 py-2 rounded-lg hover:bg-sky-600 flex items-center gap-2"
-                    hx-get="/model"
-                    hx-target="#modelList"
-                    hx-trigger="click"
-                    title="Refresh Models"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="space-y-4">
-                <div id="modelList" class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto"
-                     hx-get="/model"
-                     hx-trigger="load">
-                    <p class="text-sky-600 col-span-full">Loading models...</p>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-sky-900">Available Models</h2>
+                
+                <div class="flex items-center gap-3">
+                    <!-- Search toggle button -->
+                    <button
+                        onclick="toggleSearch()"
+                        class="glass-button text-white px-3 py-2 rounded-lg hover:bg-sky-600 flex items-center"
+                        title="Toggle Search">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Refresh button -->
+                    <button
+                        class="glass-button text-white px-3 py-2 rounded-lg hover:bg-sky-600 flex items-center"
+                        hx-get="/model"
+                        hx-target="#modelList"
+                        hx-trigger="click"
+                        title="Refresh Models">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
                 </div>
+            </div>
+            
+            <!-- Collapsible search form -->
+            <form id="searchForm" 
+                  class="mb-6 space-y-4 transition-all duration-300 origin-top hidden"
+                  hx-get="/model"
+                  hx-target="#modelList"
+                  hx-trigger="submit"
+                  hx-indicator="#searchSpinner">
+                <div>
+                    <label class="block text-sm font-medium text-sky-700 mb-1">Model Name</label>
+                    <input type="text" 
+                           name="name_contains"
+                           class="glass-input block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 text-sm px-4 py-3" 
+                           placeholder="Search models by name...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-sky-700 mb-1">Intents</label>
+                    <input type="text" 
+                           name="intents"
+                           class="glass-input block w-full rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 text-sm px-4 py-3" 
+                           placeholder="Filter by intents (e.g., greeting,farewell)">
+                </div>
+                <!-- Hidden limit input with default value -->
+                <input type="hidden" name="limit" value="20">
+                
+                <!-- Submit button -->
+                <button type="submit" 
+                        class="glass-button text-white px-4 py-2 rounded-lg w-full">
+                    Search Models
+                </button>
+                
+                <!-- Loading spinner -->
+                <div id="searchSpinner" class="htmx-indicator flex items-center justify-center">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-sky-500"></div>
+                </div>
+            </form>
+
+            <div id="modelList" 
+                 class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto"
+                 hx-get="/model"
+                 hx-trigger="load">
+                <p class="text-sky-600 col-span-full">Loading models...</p>
             </div>
         </div>
 
@@ -271,7 +320,7 @@
         </div>
 
         <!-- Model Search Section -->
-        <div class="glass-card rounded-xl p-6">
+        <!-- <div class="glass-card rounded-xl p-6">
             <h2 class="text-xl font-semibold mb-4 text-sky-900">Search Models</h2>
             <form hx-post="/model/search" hx-target="#searchResult" class="space-y-4">
                 <div>
@@ -291,7 +340,7 @@
                 </button>
             </form>
             <div id="searchResult" class="mt-4"></div>
-        </div>
+        </div> -->
     </main>
 
     <script>
@@ -691,6 +740,34 @@
                     closePredictionModal();
                 }
             });
+        }
+
+        // Add this to your existing script section
+        function toggleSearch() {
+            const searchForm = document.getElementById('searchForm');
+            if (searchForm.classList.contains('hidden')) {
+                // Show search form
+                searchForm.classList.remove('hidden');
+                // Use setTimeout to ensure the transition happens after display is set
+                setTimeout(() => {
+                    searchForm.classList.add('scale-100', 'opacity-100');
+                    searchForm.classList.remove('scale-95', 'opacity-0');
+                }, 10);
+                // Focus the first input
+                searchForm.querySelector('input').focus();
+            } else {
+                // Hide search form
+                searchForm.classList.add('scale-95', 'opacity-0');
+                searchForm.classList.remove('scale-100', 'opacity-100');
+                // Wait for transition to complete before hiding
+                setTimeout(() => {
+                    searchForm.classList.add('hidden');
+                }, 300);
+                // Clear the search inputs
+                searchForm.reset();
+                // Trigger a refresh of the model list
+                document.querySelector('[hx-get="/model"]').click();
+            }
         }
     </script>
 

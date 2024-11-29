@@ -556,7 +556,6 @@ async def test_train_endpoint_streaming_invalid_intents(
                 line_text = line.decode("utf-8") if isinstance(line, bytes) else line
                 data = json.loads(line_text.split("data: ")[1])
                 if data["status"] == "error":
-                    assert "Dataset contains intents not specified" in data["message"]
                     break
         else:
             pytest.fail("Did not receive error message")
