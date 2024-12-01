@@ -4,6 +4,8 @@ import io
 import json
 import multiprocessing
 import queue
+from multiprocessing.queues import Queue
+from multiprocessing.synchronize import Event
 from pathlib import Path
 
 import mlflow
@@ -15,7 +17,8 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from ml.train import package_model, train_intent_classifier
+from ml.mlflow import log_dataset, package_model
+from ml.train import train_intent_classifier
 from schema import (
     ModelSearchRequest,
     RegisterModelRequest,
@@ -444,7 +447,9 @@ def delete_model(model_id: int):
     pass
 
 
-def train_model_process(request_dict, progress_queue, shutdown_event):
+def train_model_process(
+    request_dict: dict, progress_queue: Queue, shutdown_event: Event
+):
     """
     Process function that runs the model training.
     Checks shutdown_event periodically to handle graceful termination.
@@ -527,23 +532,31 @@ def train_model_process(request_dict, progress_queue, shutdown_event):
             "status": "training",
             "message": "Starting model training...",
         })
-        model, intents, tokenizer = train_intent_classifier(
-            data, training_config, progress_queue, shutdown_event
-        )
+        with mlflow.start_run():
+            if request.log_dataset_to_mlflow:
+                progress_queue.put({
+                    "status": "logging_dataset",
+                    "message": "Logging dataset to MLflow...",
+                })
+                log_dataset(data)
 
-        # Check for termination after training
-        if shutdown_event.is_set():
-            progress_queue.put({"error": "Training cancelled by client"})
-            return
+            model, intents, tokenizer = train_intent_classifier(
+                data, training_config, progress_queue, shutdown_event
+            )
 
-        progress_queue.put({"status": "packaging", "message": "Packaging model..."})
-        run_id = package_model(model, intents, tokenizer)
+            # Check for termination after training
+            if shutdown_event.is_set():
+                progress_queue.put({"error": "Training cancelled by client"})
+                return
 
-        progress_queue.put({
-            "status": "complete",
-            "run_id": run_id,
-            "message": "Model training completed successfully",
-        })
+            progress_queue.put({"status": "packaging", "message": "Packaging model..."})
+            run_id = package_model(model, intents, tokenizer)
+
+            progress_queue.put({
+                "status": "complete",
+                "run_id": run_id,
+                "message": "Model training completed successfully",
+            })
 
     except Exception as e:
         progress_queue.put({"error": str(e)})

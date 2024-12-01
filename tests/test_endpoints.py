@@ -11,7 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.endpoints import app
-from ml.train import package_model, train_intent_classifier
+from ml.mlflow import package_model
+from ml.train import train_intent_classifier
 from schema.schema import TrainingConfig
 
 logger = logging.getLogger(__name__)

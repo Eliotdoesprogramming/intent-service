@@ -77,6 +77,10 @@ class TrainingConfig(BaseModel):
         le=1.0,
         examples=[0.1, 0.2],
     )
+    log_dataset: bool = Field(
+        False,
+        description="Whether to log the training dataset to MLflow",
+    )
 
     @field_validator("base_model_name")
     def validate_model_name(cls, v):
@@ -90,6 +94,7 @@ class TrainingRequest(BaseModel):
     model_name: Optional[str] = None
     experiment_name: Optional[str] = None
     training_config: TrainingConfig = TrainingConfig()
+    log_dataset_to_mlflow: bool = False
 
 
 class TrainingResponse(BaseModel):

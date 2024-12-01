@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from ml import train_intent_classifier
-from ml.train import package_model
+from ml.mlflow import log_dataset, package_model
 
 
 @pytest.fixture
@@ -155,6 +155,20 @@ def test_intent_classifier(intents_data):
         print("All scores:")
         for intent, score in sorted_intents:
             print(f"  {intent}: {score:.3f}")
+
+
+def test_dataset_logging(intents_data):
+    """Test that the dataset logging functionality works correctly"""
+    # Create training config with dataset logging enabled
+    with mlflow.start_run():
+        log_dataset(intents_data)
+        run_id = mlflow.active_run().info.run_id
+
+    # Verify that the dataset was logged
+    client = mlflow.tracking.MlflowClient()
+    run_data = client.get_run(run_id)
+    dataset = run_data.inputs.dataset_inputs[0].dataset
+    assert dataset.name == "training_data"
 
 
 if __name__ == "__main__":
