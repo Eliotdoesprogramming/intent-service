@@ -9,6 +9,7 @@ from multiprocessing.synchronize import Event
 from pathlib import Path
 
 import mlflow
+import mlflow.deployments
 import pandas as pd
 import polars as pl
 import requests
@@ -17,9 +18,13 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from ml.huggingface import upload_model_to_hub
 from ml.mlflow import log_dataset, package_model
 from ml.train import train_intent_classifier
 from schema import (
+    HuggingFaceUploadRequest,
+    HuggingFaceUploadResponse,
+    ModelBuildRequest,
     ModelSearchRequest,
     RegisterModelRequest,
     TrainingConfig,
@@ -767,3 +772,28 @@ async def predict(model_id: str, text: str) -> dict:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/model/upload-huggingface", response_model=HuggingFaceUploadResponse)
+async def upload_to_huggingface(request: HuggingFaceUploadRequest):
+    """Upload a model to Hugging Face Hub."""
+    try:
+        model_url = upload_model_to_hub(
+            run_id=request.run_id,
+            repo_name=request.repo_name,
+            hf_token=request.hf_token,
+            organization=request.organization,
+            private=request.private,
+            commit_message=request.commit_message,
+        )
+        return HuggingFaceUploadResponse(model_url=model_url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/model/build")
+def build_model(model_build_request: ModelBuildRequest):
+    mlflow.deployments.build_model(
+        model_uri=model_build_request.model_uri,
+        docker_image_name=model_build_request.docker_image_name,
+    )

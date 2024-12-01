@@ -84,3 +84,35 @@ class IntentServiceClient:
         response = self.client.post(f"{self.base_url}/model/search", json=query)
         response.raise_for_status()
         return response.json()
+
+    def upload_to_huggingface(
+        self,
+        run_id: str,
+        repo_name: str,
+        hf_token: str,
+        organization: Optional[str] = None,
+        private: bool = False,
+        commit_message: str = "Upload intent classification model",
+    ) -> Dict:
+        """Upload a model to Hugging Face Hub."""
+        request = {
+            "run_id": run_id,
+            "repo_name": repo_name,
+            "hf_token": hf_token,
+            "organization": organization,
+            "private": private,
+            "commit_message": commit_message,
+        }
+
+        response = self.client.post(
+            f"{self.base_url}/model/upload-huggingface",
+            json=request,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_models(self, limit: int = 100) -> Dict:
+        """Get all registered models."""
+        response = self.client.get(f"{self.base_url}/model", params={"limit": limit})
+        response.raise_for_status()
+        return response.json()

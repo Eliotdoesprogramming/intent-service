@@ -1,4 +1,4 @@
-.PHONY: dockerdev test test-short test-long test-cov lint lint-fix clean
+.PHONY: dockerdev test test-short test-long test-cov lint lint-fix clean build-model-image
 
 # Image name for consistency
 IMAGE_NAME = test-intent
@@ -13,6 +13,10 @@ PYTEST_ARGS = -v
 # Ruff settings
 RUFF_FORMAT_ARGS = --select I --fix
 RUFF_LINT_ARGS = --fix
+
+# MLflow model settings
+MODEL_URI ?= runs:/latest/model
+MODEL_IMAGE_NAME ?= mlflow-model
 
 dockerdev:
 	docker build -t $(IMAGE_NAME) .
@@ -47,3 +51,6 @@ clean:
 
 install:
 	uv sync
+
+build-model-image:
+	uv run mlflow models build-docker -m $(MODEL_URI) -n $(MODEL_IMAGE_NAME) --enable-mlserver

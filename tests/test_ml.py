@@ -2,9 +2,11 @@ import mlflow
 import pandas as pd
 import polars as pl
 import pytest
+from unittest.mock import patch, MagicMock
 
 from ml import train_intent_classifier
 from ml.mlflow import log_dataset, package_model
+from ml.huggingface import upload_model_to_hub
 
 
 @pytest.fixture

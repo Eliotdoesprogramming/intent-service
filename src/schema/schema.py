@@ -126,3 +126,31 @@ class ModelSearchRequest(BaseModel):
         le=1000,
         examples=[10, 50, 100],
     )
+
+
+class HuggingFaceUploadRequest(BaseModel):
+    """Request to upload a model to Hugging Face Hub."""
+
+    run_id: str
+    repo_name: str
+    hf_token: str
+    organization: Optional[str] = None
+    private: bool = False
+    commit_message: str = "Upload intent classification model"
+
+
+class HuggingFaceUploadResponse(BaseModel):
+    """Response from uploading a model to Hugging Face Hub."""
+
+    model_url: str
+
+
+class ModelBuildRequest(BaseModel):
+    """Request to build a model."""
+
+    model_uri: str = Field(..., description="mlflow model uri, e.g. models:/my-model/1")
+    docker_image_name: str = Field(
+        ...,
+        description="name of the docker image to use for building the model e.g. "
+        "my-image:latest",
+    )

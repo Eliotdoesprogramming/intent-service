@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -261,6 +262,116 @@ def serve(
 
     except Exception as e:
         print(f"[red]Error starting server: {str(e)}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def upload_huggingface(
+    run_id: str = typer.Argument(..., help="MLflow run ID containing the model"),
+    repo_name: str = typer.Argument(..., help="Name for the Hugging Face repository"),
+    organization: Optional[str] = typer.Option(
+        None, help="Optional organization name to upload to"
+    ),
+    private: bool = typer.Option(False, help="Whether to create a private repository"),
+    commit_message: str = typer.Option(
+        "Upload intent classification model", help="Commit message for the upload"
+    ),
+):
+    """Upload a model to Hugging Face Hub"""
+
+    def get_hf_token() -> str:
+        """Get Hugging Face token from environment or prompt user"""
+        token = os.getenv("HF_TOKEN")
+        if not token:
+            try:
+                token = typer.prompt(
+                    "Please enter your Hugging Face token",
+                    hide_input=True,
+                    show_default=False,
+                )
+            except (typer.Abort, EOFError):
+                print("[red]Token input aborted.[/red]")
+                sys.exit(1)
+
+            if not token:
+                print("[red]Token cannot be empty.[/red]")
+                sys.exit(1)
+        return token
+
+    try:
+        # Get token
+        token = get_hf_token()
+
+        # Upload model
+        print("[bold blue]Uploading model to Hugging Face Hub...[/bold blue]")
+        result = get_api_client().upload_to_huggingface(
+            run_id=run_id,
+            repo_name=repo_name,
+            hf_token=token,
+            organization=organization,
+            private=private,
+            commit_message=commit_message,
+        )
+
+        print("[bold green]✓ Model successfully uploaded![/bold green]")
+        print(f"[bold]Model URL:[/bold] {result['model_url']}")
+
+    except Exception as e:
+        print(f"[bold red]Error uploading model:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def list(
+    limit: int = typer.Option(100, help="Maximum number of models to display"),
+):
+    """List all registered models."""
+    try:
+        # Get all models using the API
+        results = get_api_client().get_models(limit=limit)
+
+        # Display results
+        if not results:
+            print("[yellow]No models found.[/yellow]")
+            return
+
+        table = Table(title="Registered Models")
+        table.add_column("Name", style="cyan")
+        table.add_column("Version", style="magenta")
+        table.add_column("Description")
+        table.add_column("Tags")
+        table.add_column("Intents")
+        table.add_column("Last Updated", style="green")
+        table.add_column("MLflow URI", style="blue", no_wrap=False)
+
+        for model in results:
+            # Format timestamp to readable date
+            from datetime import datetime
+
+            last_updated = datetime.fromtimestamp(
+                model["last_updated_timestamp"] / 1000
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+            # Construct MLflow URI - prioritize models URI
+            mlflow_uri = f"models:/{model['name']}/latest"
+            if not model.get("version"):  # Only show run URI if model isn't registered
+                if "run_info" in model and model["run_info"].get("run_id"):
+                    mlflow_uri = f"runs:/{model['run_info']['run_id']}/intent_model"
+
+            table.add_row(
+                model["name"],
+                str(model.get("version", "N/A")),
+                model.get("description", ""),
+                json.dumps(model.get("tags", {})),
+                ", ".join(model.get("intents", [])),
+                last_updated,
+                mlflow_uri,
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        print(f"[red]Error listing models: {str(e)}[/red]")
         raise typer.Exit(1)
 
 
