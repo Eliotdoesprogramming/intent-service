@@ -47,6 +47,8 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+	rm -rf model_cache
+	rm -rf mlruns
 	- docker rmi $(IMAGE_NAME)
 
 install:

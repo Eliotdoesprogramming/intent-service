@@ -1,6 +1,6 @@
 [project]
 name = "intent-service"
-version = "0.1.9"
+version = "0.1.10"
 description = "Intent classification service"
 readme = "README.md"
 requires-python = ">=3.10"

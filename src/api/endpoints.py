@@ -751,10 +751,17 @@ async def predict(model_id: str, text: str) -> dict:
             os.makedirs("model_cache", exist_ok=True)
         dst_path = f"model_cache/{model_id}"
         if model_id in os.listdir("model_cache"):
+            if "intent_model" in os.listdir(dst_path):
+                dst_path = dst_path + "/intent_model"
             try:
-                loaded_model = mlflow.pyfunc.load_model(dst_path + "/intent_model")
-            except mlflow.exceptions.MlflowException as e:
-                raise HTTPException(status_code=500, detail=str(e))
+                loaded_model = mlflow.pyfunc.load_model(dst_path)
+            except mlflow.exceptions.MlflowException:
+                os.rmdir(dst_path)
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No model found with ID {model_id} (tried both registered models and runs)",
+                )
+
         else:
             os.makedirs(dst_path, exist_ok=True)
             try:
@@ -770,6 +777,7 @@ async def predict(model_id: str, text: str) -> dict:
                         dst_path=dst_path,
                     )
                 except mlflow.exceptions.MlflowException:
+                    os.rmdir(dst_path)
                     raise HTTPException(
                         status_code=404,
                         detail=f"No model found with ID {model_id} (tried both registered models and runs)",
