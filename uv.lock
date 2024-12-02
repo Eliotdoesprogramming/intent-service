@@ -637,7 +637,7 @@ wheels = [
 
 [[package]]
 name = "intent-service"
-version = "0.1.7"
+version = "0.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -672,7 +672,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.68.0,<1.0.0" },
     { name = "httpx", specifier = ">=0.27.2" },
     { name = "jinja2", specifier = ">=3.1.4" },
-    { name = "mlflow", specifier = ">=2.10.1" },
+    { name = "mlflow", specifier = ">=2.18.0" },
     { name = "polars", specifier = ">=0.20.0" },
     { name = "pydantic", specifier = ">=2.4.2,<3.0.0" },
     { name = "python-multipart", specifier = "==0.0.6" },

@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import multiprocessing
+import os
 import queue
 from multiprocessing.queues import Queue
 from multiprocessing.synchronize import Event
@@ -746,19 +747,28 @@ async def predict(model_id: str, text: str) -> dict:
     """
     try:
         # First try loading as a registered model
-        try:
-            loaded_model = mlflow.pyfunc.load_model(f"models:/{model_id}/latest")
-        except mlflow.exceptions.MlflowException:
-            # If not found as registered model, try loading as a run
+        dst_path = f"model_cache/{model_id}"
+        if model_id in os.listdir("model_cache"):
+            loaded_model = mlflow.pyfunc.load_model(dst_path)
+        else:
+            os.makedirs(dst_path, exist_ok=True)
             try:
                 loaded_model = mlflow.pyfunc.load_model(
-                    f"runs:/{model_id}/intent_model"
+                    f"models:/{model_id}/latest",
+                    dst_path=dst_path,
                 )
             except mlflow.exceptions.MlflowException:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"No model found with ID {model_id} (tried both registered models and runs)",
-                )
+                # If not found as registered model, try loading as a run
+                try:
+                    loaded_model = mlflow.pyfunc.load_model(
+                        f"runs:/{model_id}/intent_model",
+                        dst_path=dst_path,
+                    )
+                except mlflow.exceptions.MlflowException:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"No model found with ID {model_id} (tried both registered models and runs)",
+                    )
 
         # Create a pandas DataFrame with the input text
         test_data = pd.DataFrame({"text": [text]})
