@@ -226,3 +226,4 @@ To learn more about publishing packages, check out the PyPA guides on building a
 
 Or, read on for guides on integrating uv with other software.
 .ruff_cache/
+model_cache/

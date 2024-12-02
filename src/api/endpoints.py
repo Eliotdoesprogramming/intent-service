@@ -747,9 +747,14 @@ async def predict(model_id: str, text: str) -> dict:
     """
     try:
         # First try loading as a registered model
+        if "model_cache" not in os.listdir():
+            os.makedirs("model_cache", exist_ok=True)
         dst_path = f"model_cache/{model_id}"
         if model_id in os.listdir("model_cache"):
-            loaded_model = mlflow.pyfunc.load_model(dst_path)
+            try:
+                loaded_model = mlflow.pyfunc.load_model(dst_path + "/intent_model")
+            except mlflow.exceptions.MlflowException as e:
+                raise HTTPException(status_code=500, detail=str(e))
         else:
             os.makedirs(dst_path, exist_ok=True)
             try:
