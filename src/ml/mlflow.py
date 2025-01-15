@@ -8,13 +8,25 @@ import torch
 
 class IntentModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
+        import torch
+        import torch.quantization
         from transformers import DistilBertTokenizer
 
+        torch.backends.quantized.engine = "qnnpack"
         """Load the model artifacts"""
+        # Load the model
         self.model = torch.load(
             os.path.join(context.artifacts["model_path"], "model.pth"),
             weights_only=False,
         )
+
+        # Quantize the model
+        self.model.eval()  # Ensure model is in eval mode before quantization
+        self.model = torch.quantization.quantize_dynamic(
+            self.model, {torch.nn.Linear}, dtype=torch.qint8
+        )
+
+        # Load other artifacts
         self.tokenizer = DistilBertTokenizer.from_pretrained(
             context.artifacts["tokenizer_path"]
         )
@@ -22,7 +34,6 @@ class IntentModel(mlflow.pyfunc.PythonModel):
             os.path.join(context.artifacts["model_path"], "intent_labels.pth"),
             weights_only=False,
         )
-        self.model.eval()
 
     def predict(self, context, model_input):
         # Tokenize the input texts
